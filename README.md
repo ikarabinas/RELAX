@@ -13,3 +13,7 @@ Further information can be found in the publication manuscripts, which must be c
 Bailey, N. W., Biabani, M., Hill, A. T., Miljevic, A., Rogasch, N. C., McQueen, B., Murphy, O.W., & Fitzgerald, P. B. (2023). Introducing RELAX: An automated pre-processing pipeline for cleaning EEG data-Part 1: Algorithm and application to oscillations. Clinical Neurophysiology.
 
 Bailey, N. W., Hill, A. T., Biabani, M., Murphy, O. W., Rogasch, N. C., McQueen, B., Miljevic, A., & Fitzgerald, P. B. (2023). RELAX part 2: A fully automated EEG data cleaning algorithm that is applicable to Event-Related-Potentials. Clinical Neurophysiology.
+
+Additionally, we have recently published a pre-print providing a method to target wICA cleaning to specific artifact periods and frequencies. If the targeted wICA method is used, the following pre-print should be cited:
+
+Bailey N.W., Hill A.T., Godfrey K., Perera M.P.N., Rogasch N.C., Fitzgibbon B.M., & Fitzgerald P.B. (2024). EEG is better when cleaning effectively targets artifacts. BioRxiv. https://doi.org/10.1101/2024.06.06.597688
