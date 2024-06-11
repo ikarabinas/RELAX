@@ -52,11 +52,17 @@
 % 20.6.2018 - included low and high pass filter options
 % 20.6.2018 - changed to filtering across concatenated trials instead of
 % individual trials to try and minimise edge artifacts and speed up script
+% 28.5.2024 - NWB changed to include option to apply causal filters instead
+% of just acausal filters
 
-function EEG = RELAX_filtbutter( EEG, high, low, ord, type )
+function EEG = RELAX_filtbutter(EEG, high, low, ord, type, causal_or_acausal_filter)
 
 if nargin < 5
 	error('Not enough input arguments.');
+end
+
+if exist('causal_or_acausal_filter', 'var')==0
+        causal_or_acausal_filter='acausal';
 end
 
 %Check inputs
@@ -70,6 +76,8 @@ elseif ~isnumeric(ord)
     error('Input ''ord'' needs to be a number, not a string. e.g. 4, not ''4''.')
 elseif ~(strcmp(type,'bandpass') || strcmp(type,'bandstop') || strcmp(type,'highpass') || strcmp(type,'lowpass'))
     error('Input ''type'' needs to be either ''bandpass'', ''bandstop'', ''highpass'', or ''lowpass''.')
+elseif ~(strcmp(causal_or_acausal_filter,'causal') || strcmp(causal_or_acausal_filter,'acausal'))
+    error('Input ''causal_or_acausal_filter'' needs to be either ''causal'' or ''acausal'' '.')
 end
 
 if strcmp(type,'highpass') && ~isempty(low)
@@ -98,7 +106,12 @@ data = double(EEG.data);
 temp = NaN(size(data,1),EEG.pnts,size(data,3));
 for x = 1:size(data,1) 
     dataIn = data(x,:);
-    dataFilt1 = filtfilt(z1,p1,dataIn);
+    if strcmpi(causal_or_acausal_filter,'causal')
+        dataFilt1 = filter(z1,p1,dataIn);
+    end
+    if strcmpi(causal_or_acausal_filter,'acausal')
+        dataFilt1 = filtfilt(z1,p1,dataIn);
+    end
     temp(x,:,:) = reshape(dataFilt1,1,EEG.pnts,[]);
 end 
 
@@ -106,11 +119,11 @@ EEG.data = temp;
 
 %display message
 if strcmp(type,'bandpass') || strcmp(type,'stop')
-    fprintf('Data filtered using a %s zero-phase butterworth filter (order = %d) between %d and %d Hz.\n',type,ord,high,low);
+    fprintf('Data filtered using a %s zero-phase %s butterworth filter (order = %d) between %d and %d Hz.\n',type,causal_or_acausal_filter,ord,high,low);
 elseif strcmp(type,'highpass')
-    fprintf('Data filtered using a high pass zero-phase butterworth filter (order = %d) below %d Hz.\n',ord,high);
+    fprintf('Data filtered using a high pass zero-phase %s butterworth filter (order = %d) below %d Hz.\n',causal_or_acausal_filter,ord,high);
 elseif strcmp(type,'lowpass')
-    fprintf('Data filtered using a low pass zero-phase butterworth filter (order = %d) above %d Hz.\n',ord,low);
+    fprintf('Data filtered using a low pass zero-phase %s butterworth filter (order = %d) above %d Hz.\n',causal_or_acausal_filter,ord,low);
 end
     
 

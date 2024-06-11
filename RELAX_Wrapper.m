@@ -15,7 +15,7 @@
 
 %% RELAX_Wrapper:
 function [RELAX_cfg, FileNumber, CleanedMetrics, RawMetrics, RELAXProcessingRoundOneAllParticipants, RELAXProcessingRoundTwoAllParticipants, RELAXProcessing_wICA_AllParticipants,...
-        RELAXProcessing_ICA_AllParticipants, RELAXProcessingRoundThreeAllParticipants, RELAX_issues_to_check, RELAXProcessingExtremeRejectionsAllParticipants] = RELAX_Wrapper (RELAX_cfg)
+        RELAXProcessing_ICA_AllParticipants, RELAXProcessingRoundThreeAllParticipants, RELAX_issues_to_check, RELAX_issues_to_check_2nd_run, RELAXProcessingExtremeRejectionsAllParticipants] = RELAX_Wrapper (RELAX_cfg)
 
 % Load pre-processing statistics file for these participants if it already
 % exists (note that this can cause errors if the number of variables
@@ -96,14 +96,15 @@ for FileNumber=RELAX_cfg.FilesToProcess(1,1:size(RELAX_cfg.FilesToProcess,2))
     end
 
     clearvars -except 'RELAX_cfg' 'FileNumber' 'CleanedMetrics' 'RawMetrics' 'RELAXProcessingRoundOneAllParticipants' 'RELAXProcessingRoundTwoAllParticipants' 'RELAXProcessing_wICA_AllParticipants'...
-        'RELAXProcessing_ICA_AllParticipants' 'RELAXProcessingRoundThreeAllParticipants' 'Warning' 'RELAX_issues_to_check' 'RELAXProcessingExtremeRejectionsAllParticipants' 'WarningAboutFileNumber';
+        'RELAXProcessing_ICA_AllParticipants' 'RELAXProcessingRoundThreeAllParticipants' 'Warning' 'RELAX_issues_to_check' 'RELAX_issues_to_check_2nd_run'...
+        'RELAXProcessingExtremeRejectionsAllParticipants' 'WarningAboutFileNumber';
     %% Load data (assuming the data is in EEGLAB .set format):
 
-    % 1.1.4: fix error where PREP seems to be removed from the path after an
+    %  1.1.4: fix error where PREP seems to be removed from the path after an
     % EEGLAB update:
     PrepFileLocation = which('pop_prepPipeline','-all');
     PrepFolderLocation=extractBefore(PrepFileLocation,'pop_prepPipeline.m');
-    
+
     cd(RELAX_cfg.myPath);
     EEG = pop_loadset(RELAX_cfg.filename);
 
@@ -124,11 +125,6 @@ for FileNumber=RELAX_cfg.FilesToProcess(1,1:size(RELAX_cfg.FilesToProcess,2))
     savefileone=[RELAX_cfg.myPath filesep 'RELAXProcessed' filesep 'RELAX_cfg'];
     save(savefileone,'RELAX_cfg')
 
-    if RELAX_cfg.ms_per_sample<0.7
-        warning('The sampling rate for this file is quite high. Depending on your processing power, RELAX may run slowly or even stall. RELAX was validated using 1000Hz sampling rates.');
-        warning('To address this, you could downsample your data with: EEG = pop_resample( EEG, 1000), then save the downsampled data prior to running RELAX');
-    end
-
     %% Select channels 
     if ~isempty(RELAX_cfg.caploc)
         EEG=pop_chanedit(EEG,  'lookup', RELAX_cfg.caploc);
@@ -139,41 +135,38 @@ for FileNumber=RELAX_cfg.FilesToProcess(1,1:size(RELAX_cfg.FilesToProcess,2))
     EEG = eeg_checkset( EEG );
     EEG.allchan=EEG.chanlocs; % take list of all included channels before any rejections
 
-    %% Band Pass filter data from 0.25 to 80Hz
+    %% Band Pass filter data: 
+    if strcmp(RELAX_cfg.NotchFilterType,'Butterworth')
+        % Use TESA to apply butterworth filter: 
+        EEG = RELAX_filtbutter( EEG, RELAX_cfg.LineNoiseFrequency-3, RELAX_cfg.LineNoiseFrequency+3, 4, 'bandstop','acausal');
+    end
 
-    % Fourth order butterworth filtering at 0.3Hz and above distorts ERPs, whereas 0.2Hz
-    % has a negligible effect on ERPs. Some of our data showed drift at
-    % 0.3Hz, so we've gotten as close as possible to filtering that out
-    % without falling in to the range of having a negative effect on the
-    % ERPs. Cleaner data might be better to be filtered at 0.1Hz.
-        
-    % https://www.frontiersin.org/articles/10.3389/fpsyg.2012.00131/full
+    if strcmp(RELAX_cfg.LowPassFilterBeforeMWF,'no') % updated implementation, avoiding low pass filtering prior to MWF reduces chances of rank deficiencies, increasing potential values for MWF delay period 
+        if strcmp(RELAX_cfg.FilterType,'Butterworth')
+            EEG = RELAX_filtbutter( EEG, RELAX_cfg.HighPassFilter, [], 4, 'highpass', RELAX_cfg.causal_or_acausal_filter);
+        end
+        if strcmp(RELAX_cfg.FilterType,'pop_eegfiltnew')
+            EEG = pop_eegfiltnew(EEG,RELAX_cfg.HighPassFilter,[]);
+        end
+    end
     
-    % We also experimented with EEGLAB's cleanline to reconstruct the notch
-    % filtered data (which reconstructs the 50Hz data rather than removing
-    % it. However, when this was used, it introduced strange
-    % high frequency artifacts at the MWF cleaning steps, which seemed to
-    % depend on the duration setting of the MWF filter (artifacts were
-    % longer when the filter was set for long). Similarly, using a higher 
-    % order than 2 for the notch led to common rank insufficiency in the MWF step, 
-    % as did any use of EEGLAB's pop_eegfiltnew. I think this is due to increased
-    % temporal dependencies created with these filters, which adversely
-    % affect the independence of timepoints required for the temporal
-    % filter cleaning by the MWF. Some good alternatives might be robust
-    % detrending and zapline reported by De Cheveigne (2018) and available
-    % in the noisetools package (nt_detrend and nt_zapline). However,
-    % automatic parameter setting is not available for this yet, and our
-    % initial testing of nt_detrend resulted in worse performance (despite
-    % enabling MWF cleaning delay periods up to 30 with no rank
-    % deficiencies, demonstrating the benefits of using these methods to
-    % avoid adding temporal dependencies to the data, unlike filtering
-    % approaches).
-    
-    % de Cheveigné, A., & Arzounian, D. (2018). Robust detrending, rereferencing, outlier detection, and inpainting for multichannel data. NeuroImage, 172, 903-912.
-    
-    % Use TESA to apply butterworth filter: 
-    EEG = RELAX_filtbutter( EEG, RELAX_cfg.LineNoiseFrequency-3, RELAX_cfg.LineNoiseFrequency+3, 4, 'bandstop' );
-    EEG = RELAX_filtbutter( EEG, RELAX_cfg.HighPassFilter, RELAX_cfg.LowPassFilter, 4, 'bandpass' );
+    if strcmp(RELAX_cfg.LowPassFilterBeforeMWF,'yes') % original implementation, not recommended unless downsampling, as increases chances of rank deficiencies
+        EEG = RELAX_filtbutter( EEG, RELAX_cfg.HighPassFilter, RELAX_cfg.LowPassFilter, 4, 'bandpass', RELAX_cfg.causal_or_acausal_filter);
+    end
+
+    if strcmp(RELAX_cfg.DownSample,'yes')
+        EEG = pop_resample(EEG,RELAX_cfg.DownSample_to_X_Hz); % downsample data (if applied, should always be applied after low pass filtering)
+        RELAX_cfg.ms_per_sample=(1000/EEG.srate);
+    end
+
+    if RELAX_cfg.ms_per_sample<0.7
+        warning('The sampling rate for this file is quite high. Depending on your processing power, RELAX may run slowly or even stall, especially if applying MWF cleaning');
+        warning('RELAX was validated using 1000Hz sampling rates, which is still a high sample rate for most analyses. You could downsample your data by setting the relevant options in RELAX');
+    end
+
+    if strcmp(RELAX_cfg.NotchFilterType,'ZaplinePlus')
+        [EEG ] = clean_data_with_zapline_plus_eeglab_wrapper(EEG,struct('plotResults',0)); % requires the zapline plus plugin. Best applied after downsampling to 250Hz or 500Hz.
+    end
 
     %% Clean flat channels and bad channels showing improbable data:
     % PREP pipeline: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4471356/
@@ -208,7 +201,7 @@ for FileNumber=RELAX_cfg.FilesToProcess(1,1:size(RELAX_cfg.FilesToProcess,2))
 
     % Record extreme artifact rejection details for all participants in single table:
     RELAXProcessingExtremeRejectionsAllParticipants(FileNumber,:) = struct2table(epochedEEG.RELAXProcessingExtremeRejections,'AsArray',true);
-    
+
     rawEEG=continuousEEG; % Take a copy of the not yet cleaned data for calculation of all cleaning SER and ARR at the end
     
     %% Mark artifacts for calculating SER and ARR, regardless of whether MWF is performed (RELAX v1.1.3 update): 
@@ -220,7 +213,7 @@ for FileNumber=RELAX_cfg.FilesToProcess(1,1:size(RELAX_cfg.FilesToProcess,2))
         [Marking_artifacts_for_SER_ARR, ~] = RELAX_drift(continuousEEG, epochedEEG, RELAX_cfg); % Use epoched data to add periods showing excessive drift to the mask 
         Marking_all_artifacts_for_SER_ARR.RELAXProcessing.Details.NoiseMaskFullLength(Marking_artifacts_for_SER_ARR.RELAXProcessing.Details.NoiseMaskFullLength==1)=1; 
         Marking_all_artifacts_for_SER_ARR.RELAX.NaNsForExtremeOutlierPeriods=continuousEEG.RELAX.NaNsForExtremeOutlierPeriods; 
-        [Marking_all_artifacts_for_SER_ARR] = RELAX_pad_brief_mask_periods (Marking_all_artifacts_for_SER_ARR, RELAX_cfg, 'notblinks'); % If period has been marked as shorter than RELAX_cfg.MinimumArtifactDuration, then pad it out.
+        [Marking_all_artifacts_for_SER_ARR] = RELAX_pad_brief_mask_periods (Marking_all_artifacts_for_SER_ARR, RELAX_cfg, 'notblinks'); % If period has been marked as shorter than RELAX_cfg.MinimumArtifactDuration, then pad it out. 
         if isfield(continuousEEG.RELAX,'eyeblinkmask')
                 Marking_all_artifacts_for_SER_ARR.RELAXProcessing.Details.NoiseMaskFullLength(continuousEEG.RELAX.eyeblinkmask==1)=1; 
                 [Marking_all_artifacts_for_SER_ARR] = RELAX_pad_brief_mask_periods (Marking_all_artifacts_for_SER_ARR, RELAX_cfg, 'blinks'); 
@@ -272,6 +265,8 @@ for FileNumber=RELAX_cfg.FilesToProcess(1,1:size(RELAX_cfg.FilesToProcess,2))
         EEG.RELAX.ProportionMarkedInMWFArtifactMaskTotalR1=EEG.RELAXProcessing.ProportionMarkedInMWFArtifactMaskTotal; 
   
         %% RUN MWF TO CLEAN DATA BASED ON MASKS CREATED ABOVE:
+        RELAX_cfg.MWFDelayPeriod=RELAX_cfg.MWFDelayPeriod_for_muscle_artifacts; 
+        RELAX_cfg.MWF_delay_spacing=RELAX_cfg.MWF_delay_spacing_for_muscle_artifacts;
         [EEG] = RELAX_perform_MWF_cleaning (EEG, RELAX_cfg);          
 
         EEG.RELAXProcessingRoundOne=EEG.RELAXProcessing; % Record MWF cleaning details from round 1 in EEG file          
@@ -347,6 +342,8 @@ for FileNumber=RELAX_cfg.FilesToProcess(1,1:size(RELAX_cfg.FilesToProcess,2))
         EEG.RELAX.ProportionMarkedInMWFArtifactMaskTotalR2=EEG.RELAXProcessing.ProportionMarkedInMWFArtifactMaskTotal; 
 
         %% RUN MWF TO CLEAN DATA BASED ON MASKS CREATED ABOVE:
+        RELAX_cfg.MWFDelayPeriod=RELAX_cfg.MWFDelayPeriod_for_eye_movements; 
+        RELAX_cfg.MWF_delay_spacing=RELAX_cfg.MWF_delay_spacing_for_eye_movements; % set how sparsely the delay stacking is spread
         [EEG] = RELAX_perform_MWF_cleaning (EEG, RELAX_cfg);           
  
         EEG.RELAXProcessingRoundTwo=EEG.RELAXProcessing; % Record MWF cleaning details from round 2 in EEG file
@@ -435,6 +432,8 @@ for FileNumber=RELAX_cfg.FilesToProcess(1,1:size(RELAX_cfg.FilesToProcess,2))
         EEG.RELAX.ProportionMarkedInMWFArtifactMaskTotalR3=EEG.RELAXProcessing.ProportionMarkedInMWFArtifactMaskTotal; 
 
         %% RUN MWF TO CLEAN DATA BASED ON MASKS CREATED ABOVE:
+        RELAX_cfg.MWFDelayPeriod=RELAX_cfg.MWFDelayPeriod_for_eye_movements; 
+        RELAX_cfg.MWF_delay_spacing=RELAX_cfg.MWF_delay_spacing_for_eye_movements; % set how sparsely the delay stacking is spread
         [EEG] = RELAX_perform_MWF_cleaning (EEG, RELAX_cfg);               
         
         if isfield(EEG.RELAX, 'eyeblinkmask') % if eyeblinkmask has been created, do the following (thanks to Jane Tan for the suggested bug fix when eyeblinkmask is not created)
@@ -469,28 +468,47 @@ for FileNumber=RELAX_cfg.FilesToProcess(1,1:size(RELAX_cfg.FilesToProcess,2))
     if RELAX_cfg.Do_MWF_Once==0
         EEG=continuousEEG;
     end
-    [EEG] = RELAX_average_rereference(EEG);
-    EEG = eeg_checkset( EEG );        
+          
     % Reject periods that were marked as NaNs in the MWF masks because they 
     % showed extreme shift within the epoch or extremely improbable data:
     EEG = eeg_eegrej( EEG, EEG.RELAX.ExtremelyBadPeriodsForDeletion);
+    
+    if strcmp(RELAX_cfg.LowPassFilterBeforeMWF,'no') % if low pass filtering wasn't applied before MWF cleaning (recommended) apply it here
+        if strcmp(RELAX_cfg.FilterType,'Butterworth')
+            EEG = RELAX_filtbutter( EEG, [], RELAX_cfg.LowPassFilter, 4, 'lowpass', RELAX_cfg.causal_or_acausal_filter);
+        end
+        if strcmp(RELAX_cfg.FilterType,'pop_eegfiltnew')
+            EEG = pop_eegfiltnew(EEG,[],RELAX_cfg.LowPassFilter);
+        end
+    end
+    
+    [EEG] = RELAX_average_rereference(EEG);
+    EEG = eeg_checkset( EEG );  
+
+    %% Perform wICA on ICLabel identified artifacts that remain:
+    if RELAX_cfg.Perform_targeted_wICA==1
+        % The following cleans eye movements and muscle artifacts in the
+        % independent component space by a combination of wavelet enhanced
+        % ICA cleaning and targeting to restrict the cleaning to only 
+        % artifact periods for eye movement components, and high pass 
+        % filtering muscle components at 15Hz:
+        EEG.RELAXProcessing_wICA.aFileName=cellstr(FileName);
+        [EEG] = RELAX_targeted_wICA(EEG,RELAX_cfg);
+        % setting 'RELAX_cfg.Report_all_wICA_info' to 1 will report proportion of ICs categorized as each category, and variance explained by ICs from each category (function is ~20s slower if this is implemented)
+        EEG = eeg_checkset( EEG );
+        RELAXProcessing_wICA=EEG.RELAXProcessing_wICA;
+        % Record processing statistics for all participants in single table:
+        RELAXProcessing_wICA_AllParticipants(FileNumber,:) = struct2table(RELAXProcessing_wICA,'AsArray',true);
+    end
     
     %% Perform wICA on ICLabel identified artifacts that remain:
     if RELAX_cfg.Perform_wICA_on_ICLabel==1
         % The following performs wICA, implemented on only the components
         % marked as artifact by ICLabel.
-        
-        % fastica_symm is repeated up to 3 times in the case of non-convergence
-        % to ensure non-convergence doesn't impair cleaning. fastica
-        % performs quickly on continuous data and doesn't seem to be
-        % inferior at cleaning compared to AMICA (which is much slower). It
-        % also seems to be comparable (or only slightly worse) than
-        % extended infomax (run via cudaICA for speed).
         EEG.RELAXProcessing_wICA.aFileName=cellstr(FileName);
-        [EEG,~, ~, ~, ~] = RELAX_wICA_on_ICLabel_artifacts(EEG,RELAX_cfg.ICA_method, 1, 0, EEG.srate, 5,'coif5',RELAX_cfg.Report_all_ICA_info); 
-        % adding 'Report_all_wICA_info' to the end of the parameters specified will optionally report proportion of ICs categorized as each category, and variance explained by ICs from each category (function is ~20s slower if this is implemented)
+        [EEG,~, ~, ~, ~] = RELAX_wICA_on_ICLabel_artifacts(EEG,RELAX_cfg.ICA_method, 1, 0, EEG.srate, 5,'coif5',RELAX_cfg.Report_all_ICA_info,RELAX_cfg.ICLabel_thresholds,RELAX_cfg.Clean_other_comps); 
+        % setting 'RELAX_cfg.Report_all_wICA_info' to 1 will report proportion of ICs categorized as each category, and variance explained by ICs from each category (function is ~20s slower if this is implemented)
         EEG = eeg_checkset( EEG );
-
         RELAXProcessing_wICA=EEG.RELAXProcessing_wICA;
         % Record processing statistics for all participants in single table:
         RELAXProcessing_wICA_AllParticipants(FileNumber,:) = struct2table(RELAXProcessing_wICA,'AsArray',true);
@@ -503,7 +521,6 @@ for FileNumber=RELAX_cfg.FilesToProcess(1,1:size(RELAX_cfg.FilesToProcess,2))
         EEG.RELAXProcessing_ICA.aFileName=cellstr(FileName);
         EEG = RELAX_ICA_subtract(EEG,RELAX_cfg);
         EEG = eeg_checkset( EEG );
-
         RELAXProcessing_ICA=EEG.RELAXProcessing_ICA;
         % Record processing statistics for all participants in single table:
         RELAXProcessing_ICA_AllParticipants(FileNumber,:) = struct2table(RELAXProcessing_ICA,'AsArray',true);
@@ -612,12 +629,18 @@ for FileNumber=RELAX_cfg.FilesToProcess(1,1:size(RELAX_cfg.FilesToProcess,2))
     if ~exist([RELAX_cfg.myPath, filesep 'RELAXProcessed' filesep 'Cleaned_Data'], 'dir')
         mkdir([RELAX_cfg.myPath, filesep 'RELAXProcessed' filesep 'Cleaned_Data'])
     end
-    SaveSetMWF2 =[RELAX_cfg.myPath,filesep 'RELAXProcessed' filesep 'Cleaned_Data', filesep FileName '_RELAX.set'];  
+    SaveSet_CleanedFile =[RELAX_cfg.myPath,filesep 'RELAXProcessed' filesep 'Cleaned_Data', filesep FileName '_RELAX.set'];  
     EEG.RELAX_settings_used_to_clean_this_file=RELAX_cfg;
-    EEG = pop_saveset( EEG, SaveSetMWF2 ); 
+    EEG = pop_saveset( EEG, SaveSet_CleanedFile ); 
     
     % Record warnings for all participants in single table:
-    RELAX_issues_to_check(FileNumber,:) = struct2table(EEG.RELAX_issues_to_check,'AsArray',true);
+    try
+        RELAX_issues_to_check(FileNumber,:) = struct2table(EEG.RELAX_issues_to_check,'AsArray',true);
+    catch
+        RELAX_issues_to_check_2nd_run(FileNumber,:) = struct2table(EEG.RELAX_issues_to_check,'AsArray',true);
+        warning('The variable: "RELAX_issues_to_check" already exists and includes different settings from your current settings')
+        warning('This is likely from a previous run of RELAX. Saving variable as "RELAX_issues_to_check_2nd_run" instead');
+    end
     
     %% Save statistics for each participant and across participants, graph cleaning metrics:
     
@@ -644,7 +667,7 @@ for FileNumber=RELAX_cfg.FilesToProcess(1,1:size(RELAX_cfg.FilesToProcess,2))
     else
         RELAXProcessingRoundThreeAllParticipants={};
     end
-    if RELAX_cfg.Perform_wICA_on_ICLabel==1
+    if RELAX_cfg.Perform_wICA_on_ICLabel==1 || RELAX_cfg.Perform_targeted_wICA==1
         savefilefour=[RELAX_cfg.myPath filesep 'RELAXProcessed' filesep 'ProcessingStatistics_wICA'];
         save(savefilefour,'RELAXProcessing_wICA_AllParticipants')
     else
@@ -672,9 +695,13 @@ for FileNumber=RELAX_cfg.FilesToProcess(1,1:size(RELAX_cfg.FilesToProcess,2))
         savemetrics=[RELAX_cfg.myPath filesep 'RELAXProcessed' filesep 'RELAX_issues_to_check'];
         save(savemetrics,'RELAX_issues_to_check')
     end
+    if exist('RELAX_issues_to_check_2nd_run','var')
+        savemetrics=[RELAX_cfg.myPath filesep 'RELAXProcessed' filesep 'RELAX_issues_to_check_2nd_run'];
+        save(savemetrics,'RELAX_issues_to_check_2nd_run')
+    end
     RELAX_cfg.filename=[];
     savefileone=[RELAX_cfg.myPath filesep 'RELAXProcessed' filesep 'RELAX_cfg'];
-    save(savefileone,'RELAX_cfg')
+    save(savefileone,'RELAX_cfg')    
 end
 
 set(groot, 'defaultAxesTickLabelInterpreter','none');
@@ -705,13 +732,21 @@ if RELAX_cfg.computecleanedmetrics==1
 end
 
 clearvars -except 'RELAX_cfg' 'FileNumber' 'CleanedMetrics' 'RawMetrics' 'RELAXProcessingRoundOneAllParticipants' 'RELAXProcessingRoundTwoAllParticipants' 'RELAXProcessing_wICA_AllParticipants'...
-        'RELAXProcessing_ICA_AllParticipants' 'RELAXProcessingRoundThreeAllParticipants' 'Warning' 'RELAX_issues_to_check' 'RELAXProcessingExtremeRejectionsAllParticipants' 'WarningAboutFileNumber';
-    
-warning('Check "RELAX_issues_to_check" to see if any issues were noted for specific files');
+        'RELAXProcessing_ICA_AllParticipants' 'RELAXProcessingRoundThreeAllParticipants' 'Warning' 'RELAX_issues_to_check' 'RELAX_issues_to_check_2nd_run'...
+        'RELAXProcessingExtremeRejectionsAllParticipants' 'WarningAboutFileNumber';
+
+if ~exist('RELAX_issues_to_check_2nd_run','var')    
+    warning('Check "RELAX_issues_to_check" to see if any issues were noted for specific files');
+    RELAX_issues_to_check_2nd_run=['This variable is only here as a placeholder in case you have already run RELAX once,...' ...
+        ' and had previously left the output variables in the same folder as the folder where you have saved the currently cleaned data.' ...
+        'This was not an issue with the current run, so this placeholder variable was not filled'];
+elseif exist('RELAX_issues_to_check_2nd_run','var')
+    warning('Check "RELAX_issues_to_check_2nd_run" to see if any issues were noted for specific files');
+end
+
 if WarningAboutFileNumber==1
     warning('You instructed RELAX to clean more files than were in your data folder. Check all your expected files were there?');
 end
-
 
 if RELAX_cfg.ProbabilityDataHasNoBlinks<2 && sum(RELAX_issues_to_check.NoBlinksDetected)>1
     f = msgbox('RELAX did not detect any blinks for some files. Open the "RELAX_issues_to_check" struct in the workspace to check which files. We recommend visually inspecting these files to ensure there has not been an error.'...
@@ -736,10 +771,5 @@ toc
 % 1) work out a way to threshold horizontal eye movements so the script
 % catches the onset and offset, rather than just the absolute +/-2MAD on
 % opposite sides of the head?
-% 2) an adaptive threshold for the wICA cleaning
-% 3) adding a requirement that the IQR blink detection method detects that
+% 2) adding a requirement that the IQR blink detection method detects that
 % positive amplitude shifts are biased towards frontal electrodes?
-% 4) instead of using typical ICLabel, adding objective muscle slope and eye
-% movement metrics to detect these artifactual components
-% 5) Independent Vector Analysis might also improve component separation,
-% although I couldn't get this to work with ICLabel.

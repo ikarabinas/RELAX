@@ -112,7 +112,7 @@ clear all; close all; clc;
 % EEGLAB:
 % https://sccn.ucsd.edu/eeglab/index.php
 % Delorme, A., & Makeig, S. (2004). EEGLAB: an open source toolbox for analysis of single-trial EEG dynamics including independent component analysis. Journal of neuroscience methods, 134(1), 9-21.
-addpath('D:\Data_Analysis\Analysis_Tools_and_Software\eeglab_2021_1\');
+addpath('C:\Analysis_Tools\eeglab2023.0');
 eeglab;
 
 % PREP pipeline to reject bad electrodes (install plugin to EEGLAB, or via the github into the EEGLAB plugin folder): 
@@ -123,28 +123,31 @@ eeglab;
 % Specify the MWF path:
 % https://github.com/exporl/mwf-artifact-removal
 % Somers, B., Francart, T., & Bertrand, A. (2018). A generic EEG artifact removal algorithm based on the multi-channel Wiener filter. Journal of neural engineering, 15(3), 036007.
-addpath(genpath('D:\Data_Analysis\Analysis_Tools_and_Software\eeglab_2021_1\plugins\mwf-artifact-removal-master'));
+addpath(genpath('C:\Analysis_Tools\eeglab2023.0\plugins\mwf-artifact-removal-master'));
 
 % Fieldtrip:
 % http://www.fieldtriptoolbox.org/
 % Robert Oostenveld, Pascal Fries, Eric Maris, and Jan-Mathijs Schoffelen. FieldTrip: Open Source Software for Advanced Analysis of MEG, EEG, and Invasive Electrophysiological Data. Computational Intelligence and Neuroscience, vol. 2011, Article ID 156869, 9 pages, 2011. doi:10.1155/2011/156869.
-addpath('D:\Data_Analysis\Analysis_Tools_and_Software\eeglab_2021_1\plugins\Fieldtrip-lite20210601');
+addpath('C:\Analysis_Tools\eeglab2023.0\plugins\Fieldtrip-lite20210601');
+
+% PICARD:
+% Can be installed from the EEGLAB plugin manager.
 
 % fastica:
 % http://research.ics.aalto.fi/ica/fastica/code/dlcode.shtml 
-addpath('D:\Data_Analysis\Analysis_Tools_and_Software\eeglab_2021_1\plugins\FastICA_25\');
+addpath('C:\Analysis_Tools\eeglab2023.0\plugins\FastICA_25\');
 
 % ICLabel in your eeglab folder as a plugin or via the github:
 % https://github.com/sccn/ICLabel
 
 % Specify  RELAX folder location (this toolbox):
-addpath('D:\Data_Analysis\Analysis_Tools_and_Software\eeglab_2021_1\plugins\RELAX-1.0.1\');
+addpath('C:\Analysis_Tools\eeglab2023.0\plugins\RELAX-2.0.0\');
 
 % Specify your electrode locations with the correct cap file:
-RELAX_cfg.caploc='D:\Data_Analysis\Cap_Location_Files\standard-10-5-cap385.elp'; % path containing electrode positions. Set to =[] if electrode locations are already in your EEG file.
+RELAX_cfg.caploc='C:\Analysis_Tools\CapLocationFiles\standard-10-5-cap385.elp'; % path containing electrode positions. Set to =[] if electrode locations are already in your EEG file.
 
 % Specify the to be processed file locations:
-RELAX_cfg.myPath='D:\DATA_TO_BE_PREPROCESSED\';
+RELAX_cfg.myPath='C:\DATA_TO_BE_PREPROCESSED\';
 
 % Or specify the single file to be processed:
 RELAX_cfg.filename=[]; % (including folder path)
@@ -186,13 +189,23 @@ end
 % are not relevant if present" to include the electrodes you would like to
 % delete.
 
-RELAX_cfg.Do_MWF_Once=1; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no).
-RELAX_cfg.Do_MWF_Twice=1; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no).
-RELAX_cfg.Do_MWF_Thrice=1; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no). I think cleaning drift in this is a good idea.
-RELAX_cfg.Perform_wICA_on_ICLabel=1; % 1 = Perform wICA on artifact components marked by ICLabel (1 for yes, 0 for no).
+RELAX_cfg.Perform_targeted_wICA=1; % This is the recommended artifact reduction method.
+
+RELAX_cfg.Do_MWF_Once=0; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no).
+RELAX_cfg.Do_MWF_Twice=0; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no).
+RELAX_cfg.Do_MWF_Thrice=0; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no). I think cleaning drift in this is a good idea.
+RELAX_cfg.Perform_wICA_on_ICLabel=0; % 1 = Perform wICA on artifact components marked by ICLabel (1 for yes, 0 for no).
 RELAX_cfg.Perform_ICA_subtract=0; % 1 = Perform ICA subtract on artifact components marked by ICLabel (1 for yes, 0 for no) (non-optimal, intended to be optionally used separately to wICA rather than additionally)
-RELAX_cfg.ICA_method='fastica_symm';
+RELAX_cfg.ICA_method='picard';
 RELAX_cfg.Report_all_ICA_info='no'; % set to yes to provide detailed report of ICLabel artifact information. Runs ~20s slower per file.
+RELAX_cfg.Clean_other_comps='no'; % set to yes to clean independent components other than blinks and muscle activity
+
+RELAX_cfg.ICLabel_thresholds=[0 0 0 0 0 0 0]; 
+% e.g. [0.5 0.8 0.8 0.5 0.5 0.5 0.5]; with values specifying comp types in the following order: ['Brain' 'Muscle' 'Eye'	'Heart'	'Line Noise' 'Channel Noise' 'Other']
+% set these to a decimal > 0 if you want components to only be considered as 
+% potential artifacts if ICLabel provides a higher decimal than that for the 
+% classification confidence. If multiple components are above the threshold, 
+% then the maximal value is used to categorize the component
 
 RELAX_cfg.computerawmetrics=1; % Compute blink and muscle metrics from the raw data?
 RELAX_cfg.computecleanedmetrics=1; % Compute SER, ARR, blink and muscle metrics from the cleaned data?
@@ -207,13 +220,13 @@ RELAX_cfg.ProbabilityDataHasNoBlinks=0; % 0 = data almost certainly has blinks, 
 RELAX_cfg.DriftSeverityThreshold=10; %MAD from the median of all electrodes. This could be set lower and would catch less severe drift 
 RELAX_cfg.ProportionWorstEpochsForDrift=0.30; % Maximum proportion of epochs to include in the mask from drift artifact type.
 
-RELAX_cfg.ExtremeVoltageShiftThreshold=20; % Threshold MAD from the median all epochs for each electrode against the same electrode in different epochs. This could be set lower and would catch less severe voltage shifts within the epoch
-RELAX_cfg.ExtremeAbsoluteVoltageThreshold=500; % microvolts max or min above which will be excluded from cleaning and deleted from data
-RELAX_cfg.ExtremeImprobableVoltageDistributionThreshold=8; % Threshold SD from the mean of all epochs for each electrode against the same electrode in different epochs. This could be set lower and would catch less severe improbable data
-RELAX_cfg.ExtremeSingleChannelKurtosisThreshold=8; % Threshold kurtosis of each electrode against the same electrode in different epochs. This could be set lower and would catch less severe kurtosis 
-RELAX_cfg.ExtremeAllChannelKurtosisThreshold=8; % Threshold kurtosis across all electrodes. This could be set lower and would catch less severe kurtosis
+RELAX_cfg.ExtremeVoltageShiftThreshold=25; % Threshold MAD from the median all epochs for each electrode against the same electrode in different epochs. This could be set lower and would catch less severe voltage shifts within the epoch
+RELAX_cfg.ExtremeAbsoluteVoltageThreshold=1000; % microvolts max or min above which will be excluded from cleaning and deleted from data
+RELAX_cfg.ExtremeImprobableVoltageDistributionThreshold=10; % Threshold SD from the mean of all epochs for each electrode against the same electrode in different epochs. This could be set lower and would catch less severe improbable data
+RELAX_cfg.ExtremeSingleChannelKurtosisThreshold=10; % Threshold kurtosis of each electrode against the same electrode in different epochs. This could be set lower and would catch less severe kurtosis 
+RELAX_cfg.ExtremeAllChannelKurtosisThreshold=10; % Threshold kurtosis across all electrodes. This could be set lower and would catch less severe kurtosis
 RELAX_cfg.ExtremeDriftSlopeThreshold=-4; % slope of log frequency log power below which to reject as drift without neural activity
-RELAX_cfg.ExtremeBlinkShiftThreshold=8; % How many MAD from the median across blink affected epochs to exclude as extreme data 
+RELAX_cfg.ExtremeBlinkShiftThreshold=10; % How many MAD from the median across blink affected epochs to exclude as extreme data 
 % (applies the higher value out of this value and the
 % RELAX_cfg.ExtremeVoltageShiftThreshold above as the
 % threshold, which caters for the fact that blinks don't affect
@@ -240,15 +253,29 @@ RELAX_cfg.HorizontalEyeMovementTimepointsExceedingThreshold=25; % The number of 
 RELAX_cfg.HorizontalEyeMovementTimepointsTestWindow=(2*RELAX_cfg.HorizontalEyeMovementTimepointsExceedingThreshold)-1; % Window duration to test for horizontal eye movement, set to 2x the value above by default.
 RELAX_cfg.HorizontalEyeMovementFocus=200; % Buffer window, masking periods earlier and later than the time where horizontal eye movements exceed the threshold.
 
-RELAX_cfg.HighPassFilter=0.25; % Sets the high pass filter. 1Hz is best for ICA decomposition if you're examining just oscillatory data, 0.25Hz seems to be the highest before ERPs are adversely affected by filtering 
-%(lower than 0.2Hz may be better, but I find a minority of my files show drift at 0.3Hz even).
-if RELAX_cfg.HighPassFilter>0.25
-    Warning='You have high pass filtered above 0.25, which can adversely affect ERP analyses';
+if (RELAX_cfg.Do_MWF_Once+RELAX_cfg.Do_MWF_Twice+RELAX_cfg.Do_MWF_Thrice)>0
+    RELAX_cfg.LowPassFilterBeforeMWF='no'; % set as no for the updated implementation
+elseif (RELAX_cfg.Do_MWF_Once+RELAX_cfg.Do_MWF_Twice+RELAX_cfg.Do_MWF_Thrice)==0
+    RELAX_cfg.LowPassFilterBeforeMWF='yes';
 end
+% avoiding low pass filtering prior to MWF reduces chances of rank deficiencies increasing potential values for MWF delay period 
+% (downsampling the data after filtering also reduces the chances of rank deficiencies) 
+RELAX_cfg.DownSample='no'; % set to 'yes' if you wish to downsample the data
+RELAX_cfg.DownSample_to_X_Hz=250; % frequency to downsample to (in samples per second / Hz)
+
+RELAX_cfg.FilterType='Butterworth'; % set as 'pop_eegfiltnew' to use EEGLAB's filter or 'Butterworth' to use Butterworth filter
+RELAX_cfg.causal_or_acausal_filter='acausal'; % set as 'acausal' or 'causal'. 
+% Acausal filters are typical, and avoid filter distortions affecting data only forwards in time, whereas causal filters are less typical, cause
+% filter distortions only forwards in time, but can protect against spurious conclusions that neural activity precedes stimuli due to filter
+% distortions being projected back from post-stimulus activity to pre-stimulus periods. See: https://doi.org/10.3389/fpsyg.2012.00233
+RELAX_cfg.HighPassFilter=0.5; % Sets the high pass filter. 1Hz is best for ICA decomposition if you're examining just oscillatory data, 0.25Hz has been suggested to be the highest before ERPs are adversely affected by filtering 
+%(but at least two studies recently have shown better detection of experimental effects with high-pass set at 0.5Hz even for ERPs, and I find a minority of my files show drift at 0.3Hz).
 RELAX_cfg.LowPassFilter=80; % If you filter out data below 75Hz, you can't use the objective muscle detection method
+
+RELAX_cfg.NotchFilterType='Butterworth'; % set as 'Butterworth' to use Butterworth filter or 'ZaplinePlus' to use ZaplinePlus. ZaplinePlus works best on data sampled at 512Hz or below, consider downsampling if above this.
 RELAX_cfg.LineNoiseFrequency=50; % Frequencies for bandstop filter in order to address line noise (set to 60 in countries with 60Hz line noise, and 50 in countries with 50Hz line noise).
 
-RELAX_cfg.ElectrodesToDelete={'CB1'; 'CB2'; 'HEOG'; 'IO1'; 'M1'; 'M2'; 'LO1'; 'LO2'; 'E1'; 'E3'; 'ECG'; 'SO1'; 'ECG'; 'SPARE1'; 'SPARE2'; 'SPARE3'; 'BP1'; 'BP2'; 'VEOG'};
+RELAX_cfg.ElectrodesToDelete={'CB1'; 'CB2'; 'HEOG'; 'IO1'; 'M1'; 'M2'; 'LO1'; 'LO2'; 'E1'; 'E3'; 'ECG'; 'SO1'; 'EOG'; 'SPARE1'; 'SPARE2'; 'SPARE3'; 'BP1'; 'BP2'; 'VEOG'};
 % If your EEG recording includes non-scalp electrodes or electrodes that you want to delete before cleaning, you can set them to be deleted here. 
 % The RELAX cleaning pipeline does not need eye, heart, or mastoid electrodes for effective cleaning.
 
@@ -260,25 +287,44 @@ RELAX_cfg.saveround3=0; % setting this value to 1 tells the script to save the t
 
 RELAX_cfg.OnlyIncludeTaskRelatedEpochs=0; % If this =1, the MWF clean and artifact templates will only include data within 5 seconds of a task trigger (other periods will be marked as NaN, which the MWF script ignores).
 
-RELAX_cfg.MuscleSlopeThreshold=-0.59; %log-frequency log-power slope threshold for muscle artifact. Less stringent = -0.31, Middle Stringency = -0.59 or more stringent = -0.72, more negative thresholds remove more muscle.
+RELAX_cfg.MuscleSlopeThreshold=-0.31; %log-frequency log-power slope threshold for muscle artifact. Less stringent = -0.31, Middle Stringency = -0.59 or more stringent = -0.72, more negative thresholds remove more muscle.
 RELAX_cfg.MaxProportionOfDataCanBeMarkedAsMuscle=0.50;  % Maximum amount of data periods to be marked as muscle artifact for cleaning by the MWF. You want at least a reasonable amount of both clean and artifact templates for effective cleaning.
 % I set this reasonably high, because otherwise muscle artifacts could considerably influence the clean mask and add noise into the data
-RELAX_cfg.ProportionOfMuscleContaminatedEpochsAboveWhichToRejectChannel=0.05; % If the proportion of epochs showing muscle activity from an electrode is higher than this, the electrode is deleted. 
+RELAX_cfg.ProportionOfMuscleContaminatedEpochsAboveWhichToRejectChannel=0.50; % If the proportion of epochs showing muscle activity from an electrode is higher than this, the electrode is deleted. 
 % Set muscle proportion before deletion to 1 to not delete electrodes based on muscle activity
-RELAX_cfg.ProportionOfExtremeNoiseAboveWhichToRejectChannel=0.05; % If the proportion of all epochs from a single electrode that are marked as containing extreme artifacts is higher than this, the electrode is deleted
+RELAX_cfg.ProportionOfExtremeNoiseAboveWhichToRejectChannel=0.25; % If the proportion of all epochs from a single electrode that are marked as containing extreme artifacts is higher than this, the electrode is deleted
 
-RELAX_cfg.MaxProportionOfElectrodesThatCanBeDeleted=0.20; % Sets the maximum proportion of electrodes that are allowed to be deleted after PREP's bad electrode deletion step
+RELAX_cfg.MaxProportionOfElectrodesThatCanBeDeleted=0.10; % Sets the maximum proportion of electrodes that are allowed to be deleted after PREP's bad electrode deletion step
 RELAX_cfg.InterpolateRejectedElectrodesAfterCleaning='no'; % Interpolate rejected electrodes back into the data after each file has been cleaned and before saving the cleaned data?
 
-RELAX_cfg.MWFDelayPeriod=8; % The MWF includes both spatial and temporal information when filtering out artifacts. Longer delays apparently improve performance. 
+RELAX_cfg.MWFDelayPeriod_for_eye_movements=10; % The MWF includes both spatial and temporal information when filtering out artifacts. Longer delays apparently improve performance. 
+RELAX_cfg.MWFDelayPeriod_for_muscle_artifacts=10; % The MWF includes both spatial and temporal information when filtering out artifacts. Longer delays apparently improve performance.
+RELAX_cfg.MWF_delay_spacing_for_eye_movements=16; % set how sparsely the delay stacking is spread when cleaning eye movements.
+RELAX_cfg.MWF_delay_spacing_for_muscle_artifacts=2; % set how sparsely the delay stacking is spread when cleaning muscle activity.
+% this interacts with the MWFDelayPeriod: the MWFDelayPeriod sets
+% how many consecutive samples before and after each timepoint are included 
+% in the MWF model (so for example, MWFDelayPeriod = 12 will include 25
+% timepoints, with 12 before and 12 after each timepoint included in the
+% model). The MWF_delay_spacing sets how sparsely each of the consecutive
+% samples are spread. So for example, MWF_delay_spacing = 5 and 
+% MWFDelayPeriod = 5 will mean that the MWF cleaning will characterise 5
+% separate timepoints before and after each timepoint, with each timepoint 
+% separated by 5 samples, for a total of 55 timepoints. Our informal
+% testing suggests that a delay period of 8 and a delay spacing of 16 is
+% optimal for addressing eye movement artifacts when data are sampled at 
+% 1000Hz, possibly reflecting that characterising ~300ms of the data is
+% optimal for modelling and cleaning the slower blink activity. In contrast,
+% our informal tests showed that for muscle artifacts, a delay spacing of 2 
+% and a delay period of ~12 seems best when data are sampled at 1000Hz 
+% is better due to the higher frequency nature of muscle artifacts.
 
 %% Check for dependencies:
 
 eeglabPath = fileparts(which('eeglab'));
 MWFPluginPath=strcat(eeglabPath,'\plugins\mwf-artifact-removal-master\');
 addpath(genpath(MWFPluginPath));
-if (exist('mwf_process','file')==0)
-    warndlg('MWF toolbox may not be installed in EEGLAB plugins folder. Toolbox can be installed from: "https://github.com/exporl/mwf-artifact-removal"','MWF Cleaning Not Available');
+if (exist('mwf_process_sparse','file')==0)
+    warndlg('MWF toolbox may not be updated to latest version in EEGLAB plugins folder. Toolbox can be installed from: "https://github.com/exporl/mwf-artifact-removal"','MWF Cleaning Not Available');
 end
 
 toolboxlist=ver;
@@ -317,6 +363,10 @@ end
 
 if (strcmp(RELAX_cfg.ICA_method,'amica')) && (exist('runamica15','file')==0)
     warndlg('AMICA may not be installed. Plugin can be installed via EEGLAB: "File" > "Manage EEGLAB Extensions"','AMICA not installed');
+end
+
+if (strcmp(RELAX_cfg.NotchFilterType,'ZaplinePlus')) && (exist('clean_data_with_zapline_plus_eeglab_wrapper','file')==0)
+    warndlg('ZaplinePlus may not be installed. Plugin can be installed via EEGLAB: "File" > "Manage EEGLAB Extensions"','ZaplinePlus not installed');
 end
 
 %% Notes on the above parameter settings:
@@ -370,8 +420,8 @@ end
 % Fitzgibbon, S. P., DeLosAngeles, D., Lewis, T. W., Powers, D. M. W., Grummett, T. S., Whitham, E. M., ... & Pope, K. J. (2016). Automatic determination of EMG-contaminated components and validation of independent component analysis using EEG during pharmacologic paralysis. Clinical Neurophysiology, 127(3), 1781-1793.
 
 %% RUN SCRIPT BELOW:
-RELAX_cfg.FilesToProcess=1;%:numel(RELAX_cfg.files); % Set which files to process
+RELAX_cfg.FilesToProcess=1:numel(RELAX_cfg.files); % Set which files to process
 
 [RELAX_cfg, FileNumber, CleanedMetrics, RawMetrics, RELAXProcessingRoundOneAllParticipants, RELAXProcessingRoundTwoAllParticipants, RELAXProcessing_wICA_AllParticipants,...
-        RELAXProcessing_ICA_AllParticipants, RELAXProcessingRoundThreeAllParticipants, RELAX_issues_to_check, RELAXProcessingExtremeRejectionsAllParticipants] = RELAX_Wrapper (RELAX_cfg);
+        RELAXProcessing_ICA_AllParticipants, RELAXProcessingRoundThreeAllParticipants, RELAX_issues_to_check, RELAX_issues_to_check_2nd_run, RELAXProcessingExtremeRejectionsAllParticipants] = RELAX_Wrapper (RELAX_cfg);
 

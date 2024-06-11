@@ -25,22 +25,22 @@ function [continuousEEG, epochedEEG] = RELAX_excluding_extreme_values(continuous
             RELAX_cfg.ExtremeVoltageShiftThreshold=25; % Threshold MAD from the median all epochs for each electrode against the same electrode in different epochs. This could be set lower and would catch less severe voltage shifts within the epoch
         end
         if isfield(RELAX_cfg, 'ExtremeImprobableVoltageDistributionThreshold')==0
-            RELAX_cfg.ExtremeImprobableVoltageDistributionThreshold=8; % Threshold SD from the mean of all epochs for each electrode against the same electrode in different epochs. This could be set lower and would catch less severe improbable data
+            RELAX_cfg.ExtremeImprobableVoltageDistributionThreshold=10; % Threshold SD from the mean of all epochs for each electrode against the same electrode in different epochs. This could be set lower and would catch less severe improbable data
         end
         if isfield(RELAX_cfg, 'ms_per_sample')==0
             RELAX_cfg.ms_per_sample=(1000/epochedEEG.srate); 
         end
         if isfield(RELAX_cfg, 'ExtremeSingleChannelKurtosisThreshold')==0
-            RELAX_cfg.ExtremeSingleChannelKurtosisThreshold=8; % Threshold kurtosis of each electrode against the same electrode in different epochs. This could be set lower and would catch less severe kurtosis 
+            RELAX_cfg.ExtremeSingleChannelKurtosisThreshold=10; % Threshold kurtosis of each electrode against the same electrode in different epochs. This could be set lower and would catch less severe kurtosis 
         end
         if isfield(RELAX_cfg, 'ExtremeAllChannelKurtosisThreshold')==0
-            RELAX_cfg.ExtremeAllChannelKurtosisThreshold=8; % Threshold kurtosis across all electrodes. This could be set lower and would catch less severe kurtosis  
+            RELAX_cfg.ExtremeAllChannelKurtosisThreshold=10; % Threshold kurtosis across all electrodes. This could be set lower and would catch less severe kurtosis  
         end
         if isfield(RELAX_cfg, 'ExtremeAbsoluteVoltageThreshold')==0
-            RELAX_cfg.ExtremeAbsoluteVoltageThreshold=500; % microvolts max or min above which will be excluded from cleaning and deleted from data
+            RELAX_cfg.ExtremeAbsoluteVoltageThreshold=1000; % microvolts max or min above which will be excluded from cleaning and deleted from data
         end
         if isfield(RELAX_cfg, 'ExtremeBlinkShiftThreshold')==0
-            RELAX_cfg.ExtremeBlinkShiftThreshold=8; % How many MAD from the median across blink affected epochs to exclude as extreme data 
+            RELAX_cfg.ExtremeBlinkShiftThreshold=10; % How many MAD from the median across blink affected epochs to exclude as extreme data 
             % (applies the higher value out of this value and the
             % RELAX_cfg.ExtremeVoltageShiftThreshold above as the
             % threshold, which caters for the fact that blinks don't affect
@@ -52,12 +52,12 @@ function [continuousEEG, epochedEEG] = RELAX_excluding_extreme_values(continuous
         end
     elseif exist('RELAX_cfg', 'var')==0     
         RELAX_cfg.ExtremeVoltageShiftThreshold=25; %MAD from the median of all epochs for each electrode against itself. This could be set lower and would catch less severe pops
-        RELAX_cfg.ExtremeImprobableVoltageDistributionThreshold=8; %SD from the mean of all epochs for each electrode against itself. This could be set lower and would catch less severe improbable data
+        RELAX_cfg.ExtremeImprobableVoltageDistributionThreshold=10; %SD from the mean of all epochs for each electrode against itself. This could be set lower and would catch less severe improbable data
         RELAX_cfg.ms_per_sample=(1000/epochedEEG.srate);
-        RELAX_cfg.ExtremeSingleChannelKurtosisThreshold=8; % SD from the mean of the single electrodes. This could be set lower and would catch less severe kurtosis 
-        RELAX_cfg.ExtremeAllChannelKurtosisThreshold=8; % SD from the mean of all electrodes. This could be set lower and would catch less severe kurtosis  
-        RELAX_cfg.ExtremeAbsoluteVoltageThreshold=500; % microvolts max or min above which will be excluded from cleaning and deleted from data
-        RELAX_cfg.ExtremeBlinkShiftThreshold=3; % How many MAD from the median of blink affected epochs to exclude as extreme data
+        RELAX_cfg.ExtremeSingleChannelKurtosisThreshold=10; % SD from the mean of the single electrodes. This could be set lower and would catch less severe kurtosis 
+        RELAX_cfg.ExtremeAllChannelKurtosisThreshold=10; % SD from the mean of all electrodes. This could be set lower and would catch less severe kurtosis  
+        RELAX_cfg.ExtremeAbsoluteVoltageThreshold=1000; % microvolts max or min above which will be excluded from cleaning and deleted from data
+        RELAX_cfg.ExtremeBlinkShiftThreshold=10; % How many MAD from the median of blink affected epochs to exclude as extreme data
         RELAX_cfg.ExtremeDriftSlopeThreshold=-4; % slope of log frequency log power below which to reject as drift without neural activity
     end
     %% Detect voltage shift in Epoch to identify outlying channels:
@@ -244,6 +244,10 @@ function [continuousEEG, epochedEEG] = RELAX_excluding_extreme_values(continuous
     OneSecondOfNaNs=NaN(1,(round(1000/RELAX_cfg.ms_per_sample)));
     OneSecondOf1s=ones(1,(round(1000/RELAX_cfg.ms_per_sample)));           
     epochedEEG.RELAX.NaNsForExtremeOutlierPeriods=epochedEEG.RELAXProcessing.Details.NaNsForNonEvents;
+    % RELAX v1.1.6 addition to solve issue where noisemaskfulllength is not
+    % created unless MWF cleaning is applied or there are extreme outlier
+    % artifacts:
+    epochedEEG.RELAXProcessing.Details.NoiseMaskFullLength=epochedEEG.RELAXProcessing.Details.NaNsForNonEvents; 
     % Use the epoch markings from all extreme rejection methods to create
     % template of NaN's to be excluded from MWF cleaning artifact and clean
     % period templates, and to be rejected from data before ICA:

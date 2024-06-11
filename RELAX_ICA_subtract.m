@@ -76,17 +76,22 @@ function [EEG] = RELAX_ICA_subtract(EEG,RELAX_cfg)
          IC=reshape(OUTEEG.icaact, size(OUTEEG.icaact,1), []);
     elseif strcmp(RELAX_cfg.ICA_method,'amica')
         OUTEEG=EEG;
-        % You'll need to install amica15 first, and in the folder that you
+        % You'll need to install AMICA first, and in the folder that you
         % specify in the line below (with no spaces in any part of the folder or subfolders):
-        % You can download amica15 via EEGLAB    
-        cd('D:\Data\AMICA1.5.1');    
+        % You can download AMICA via EEGLAB
+        amica_file = which('runamica15');
+        if ~exist(amica_file)
+            disp('!! AMICA directory not found, please ensure you have AMICA installed !!');
+        end
+        [filepath,~,~] = fileparts(amica_file);
+        cd(filepath);
         % define parameters
         numprocs = 1;       % # of nodes (default = 1)
         max_threads = 4;    % # of threads per node
-        num_models = 1;     % # of models of mixture ICA 
-        max_iter = 2000;    % max number of learning steps 
-        mkdir('D:\Data\AMICAtmp');
-        outdir = 'D:\Data\AMICAtmp\';
+        num_models = 1;     % # of models of mixture ICA
+        max_iter = 2000;    % max number of learning steps
+        mkdir([filepath filesep 'AMICAtmp']);
+        outdir = [filepath filesep 'AMICAtmp' filesep];
         % Run AMICA:    
         [OUTEEG.icaweights, OUTEEG.icasphere, ~] = runamica15(OUTEEG.data, 'num_chans', EEG.nbchan, 'num_models',num_models,'outdir',outdir,'numprocs', numprocs, 'max_threads', max_threads, 'max_iter',max_iter,'pcakeep', EEG.nbchan, 'do_reject', 1, 'numrej', 15, 'rejsig', 3, 'rejint', 1);
         W = OUTEEG.icaweights*OUTEEG.icasphere;
@@ -112,8 +117,14 @@ function [EEG] = RELAX_ICA_subtract(EEG,RELAX_cfg)
     % performed on them only:
     % (https://github.com/sccn/ICLabel)
     OUTEEG = iclabel(OUTEEG);
-    [~, I]=max(OUTEEG.etc.ic_classification.ICLabel.classifications, [], 2);
-    ICsMostLikelyNotBrain=(I>1)';
+    IC_classifications=OUTEEG.etc.ic_classification.ICLabel.classifications; % allows user to set thresholds for classification confidence before considered an artifact
+    IC_classifications(IC_classifications<RELAX_cfg.ICLabel_thresholds)=0;
+    [~, I]=max(IC_classifications, [], 2);
+    if strcmp(RELAX_cfg.Clean_other_comps,'no')==1
+        ICsMostLikelyNotBrain=(I==2 | I ==3)'; 
+    elseif strcmp(RELAX_cfg.Clean_other_comps,'yes')==1
+        ICsMostLikelyNotBrain=(I>1)'; 
+    end
     
     ArtifactICList=find(ICsMostLikelyNotBrain==1);
     EEG = pop_subcomp( OUTEEG,ArtifactICList, 0); % removes artifactual components by subtraction

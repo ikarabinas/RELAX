@@ -63,7 +63,7 @@ RELAX_epoching_cfg.BL_correction_Factor_1_Level_1={'HappyGo' 'SadGo' }; % trigge
 RELAX_epoching_cfg.BL_correction_Factor_2_Level_1={'HappyGo' 'HappyNogo' }; % triggers to include in factor 2's level 1 for regression BL correction (all other triggers are included in factor 2's level 2)
 
 % Specify the to be processed file locations:
-RELAX_epoching_cfg.CleanedPath=['D:\DATA_TO_BE_PREPROCESSED' filesep 'RELAXProcessed' filesep 'Cleaned_Data'];
+RELAX_epoching_cfg.CleanedPath=['C:\DATA_TO_BE_PREPROCESSED' filesep 'RELAXProcessed' filesep 'Cleaned_Data'];
 
 % Load pre-processing statistics file for these participants if it already
 % exists:

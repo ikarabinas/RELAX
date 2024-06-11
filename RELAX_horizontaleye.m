@@ -41,7 +41,7 @@ function [continuousEEG] = RELAX_horizontaleye(continuousEEG, RELAX_cfg)
         if isfield(RELAX_cfg, 'HorizontalEyeMovementTimepointsExceedingThreshold')==0
             RELAX_cfg.HorizontalEyeMovementTimepointsExceedingThreshold=25; % Timepoints exceeding horizontal threshold within the test period set below before marked as horizontal eye movement.
         end
-        if isfield(RELAX_cfg, 'HorizontalEyeMovementTimepointsExceedingThreshold')==0
+        if isfield(RELAX_cfg, 'HorizontalEyeMovementTimepointsTestWindow')==0 % 1.1.6 updated incorrect specification of this variable here.
             RELAX_cfg.HorizontalEyeMovementTimepointsTestWindow=(2*RELAX_cfg.HorizontalEyeMovementTimepointsExceedingThreshold)-1; % Window duration to test for horizontal eye movement, set to 2x the value above by default.
         end
         if isfield(RELAX_cfg, 'HorizontalEyeMovementFocus')==0

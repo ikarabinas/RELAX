@@ -26,7 +26,7 @@ end
 
 % Specify the to be processed file locations:
 if ~isfield(RELAX_epoching_cfg,'CleanedPath')
-    RELAX_epoching_cfg.CleanedPath='D:\DATA_TO_BE_PREPROCESSED\RELAXProcessed\Cleaned_Data\';
+    RELAX_epoching_cfg.CleanedPath='C:\DATA_TO_BE_PREPROCESSED\RELAXProcessed\Cleaned_Data\';
 end
 
 if ~isfield(RELAX_epoching_cfg,'InterpolateRejectedChannels')

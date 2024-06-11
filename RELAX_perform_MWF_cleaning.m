@@ -28,26 +28,28 @@ function [EEG] = RELAX_perform_MWF_cleaning (EEG, RELAX_cfg)
         if isfield(RELAX_cfg, 'KeepAllInfo')==0
             RELAX_cfg.KeepAllInfo=0; 
         end
+        if isfield(RELAX_cfg, 'MWF_delay_spacing')==0
+            RELAX_cfg.MWF_delay_spacing=1;
+        end
     elseif exist('RELAX_cfg', 'var')==0  
         RELAX_cfg.MWFDelayPeriod=8; 
         RELAX_cfg.KeepAllInfo=0; 
+        RELAX_cfg.MWF_delay_spacing=1;
     end
     
-    % Delay periods >5 can lead to generalised eigenvector rank deficiency
+    % If low-pass filtering is applied prior to MWF cleaning, then delay
+    % periods >5 can lead to generalised eigenvector rank deficiency
     % in some files, and if this occurs cleaning is ineffective. Delay
-    % period = 5 was used by Somers et al (2018). The rank deficiency is
-    % likely to be because data filtering creates a temporal
-    % dependency between consecutive datapoints, reducing their
+    % period = 5 was used by Somers et al (2018) on data sampled at 250Hz. 
+    % The rank deficiency is likely to be because data filtering creates 
+    % a temporal dependency between consecutive datapoints, reducing their
     % independence when including the temporal aspect in the MWF
-    % computation. To address this, the MWF function attempts MWF cleaning
-    % at the delay period set above, but if rank deficiency occurs,
+    % computation. To address this, we suggest not performing 
+    % low-pass filtering prior to applying the MWF cleaning.
+    % Additionally, the MWF function is set to attempt MWF cleaning
+    % at the delay period set in RELAX_cfg, but if rank deficiency occurs,
     % it reduces the delay period by 1 and try again (for 3
     % iterations).
-    
-    % Using robust detrending (which does not create any temporal
-    % dependence,unlike filtering) may be an alternative which avoids rank
-    % deficiency (but our initial test suggested this led to worse cleaning
-    % than filtering)
     
     % First, order the MWF Processing statistics structure in alphabetical order:
     [~, neworder] = sort(lower(fieldnames(EEG.RELAXProcessing)));
@@ -59,7 +61,8 @@ function [EEG] = RELAX_perform_MWF_cleaning (EEG, RELAX_cfg)
     
     %% RUN MWF TO CLEAN DATA BASED ON MASKS CREATED IN RELAX FUNCTIONS:
     if EEG.RELAXProcessing.ProportionMarkedInMWFArtifactMaskTotal>0.05    
-        [cleanEEG, d, W, SER, ARR] = mwf_process (EEG.data, EEG.RELAXProcessing.Details.NoiseMaskFullLength, RELAX_cfg.MWFDelayPeriod);
+        params = mwf_params('delay', (RELAX_cfg.MWFDelayPeriod),'delay_spacing', RELAX_cfg.MWF_delay_spacing);
+        [cleanEEG, d, W, SER, ARR] = mwf_process (EEG.data, EEG.RELAXProcessing.Details.NoiseMaskFullLength, params);
         EEG.RELAXProcessing.DelayPeriod=RELAX_cfg.MWFDelayPeriod;
         % If Generalized eigenvectors are not scaled as assumed, try again
         % with a shorter delay period, up to 3 times:
@@ -69,7 +72,8 @@ function [EEG] = RELAX_perform_MWF_cleaning (EEG, RELAX_cfg)
             warning(['Trying again with a shorter delay period.',[]]);
             clear warnmsg
             lastwarn('')
-            [cleanEEG, d, W, SER, ARR] = mwf_process (EEG.data, EEG.RELAXProcessing.Details.NoiseMaskFullLength, (RELAX_cfg.MWFDelayPeriod-1));
+            params = mwf_params('delay', (RELAX_cfg.MWFDelayPeriod-1),'delay_spacing', RELAX_cfg.MWF_delay_spacing);
+            [cleanEEG, d, W, SER, ARR] = mwf_process (EEG.data, EEG.RELAXProcessing.Details.NoiseMaskFullLength, params);
             EEG.RELAXProcessing.DelayPeriod=RELAX_cfg.MWFDelayPeriod-1;
         end
         [warnmsg] = lastwarn;
@@ -77,7 +81,8 @@ function [EEG] = RELAX_perform_MWF_cleaning (EEG, RELAX_cfg)
             warning(['Trying again with a shorter delay period.',[]]);
             clear warnmsg
             lastwarn('')
-            [cleanEEG, d, W, SER, ARR] = mwf_process (EEG.data, EEG.RELAXProcessing.Details.NoiseMaskFullLength, (RELAX_cfg.MWFDelayPeriod-2));
+            params = mwf_params('delay', (RELAX_cfg.MWFDelayPeriod-2),'delay_spacing', RELAX_cfg.MWF_delay_spacing);
+            [cleanEEG, d, W, SER, ARR] = mwf_process (EEG.data, EEG.RELAXProcessing.Details.NoiseMaskFullLength, params);
             EEG.RELAXProcessing.DelayPeriod=RELAX_cfg.MWFDelayPeriod-2;
         end
         [warnmsg] = lastwarn;
@@ -85,7 +90,8 @@ function [EEG] = RELAX_perform_MWF_cleaning (EEG, RELAX_cfg)
             warning(['Trying again with a shorter delay period.',[]]);
             clear warnmsg
             lastwarn('')
-            [cleanEEG, d, W, SER, ARR] = mwf_process (EEG.data, EEG.RELAXProcessing.Details.NoiseMaskFullLength, (RELAX_cfg.MWFDelayPeriod-3));
+            params = mwf_params('delay', (RELAX_cfg.MWFDelayPeriod-3),'delay_spacing', RELAX_cfg.MWF_delay_spacing);
+            [cleanEEG, d, W, SER, ARR] = mwf_process (EEG.data, EEG.RELAXProcessing.Details.NoiseMaskFullLength, params);
             EEG.RELAXProcessing.DelayPeriod=RELAX_cfg.MWFDelayPeriod-3;
         end
 

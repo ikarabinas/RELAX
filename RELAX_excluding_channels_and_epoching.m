@@ -25,22 +25,22 @@ function [continuousEEG, epochedEEG] = RELAX_excluding_channels_and_epoching(con
             RELAX_cfg.ExtremeVoltageShiftThreshold=25; % Threshold MAD from the median all epochs for each electrode against the same electrode in different epochs. This could be set lower and would catch less severe voltage shifts within the epoch
         end
         if isfield(RELAX_cfg, 'ExtremeImprobableVoltageDistributionThreshold')==0
-            RELAX_cfg.ExtremeImprobableVoltageDistributionThreshold=8; % Threshold SD from the mean of all epochs for each electrode against the same electrode in different epochs. This could be set lower and would catch less severe improbable data
+            RELAX_cfg.ExtremeImprobableVoltageDistributionThreshold=10; % Threshold SD from the mean of all epochs for each electrode against the same electrode in different epochs. This could be set lower and would catch less severe improbable data
         end
         if isfield(RELAX_cfg, 'ms_per_sample')==0
             RELAX_cfg.ms_per_sample=(1000/continuousEEG.srate); 
         end
         if isfield(RELAX_cfg, 'ExtremeSingleChannelKurtosisThreshold')==0
-            RELAX_cfg.ExtremeSingleChannelKurtosisThreshold=8; % Threshold kurtosis of each electrode against the same electrode in different epochs. This could be set lower and would catch less severe kurtosis 
+            RELAX_cfg.ExtremeSingleChannelKurtosisThreshold=10; % Threshold kurtosis of each electrode against the same electrode in different epochs. This could be set lower and would catch less severe kurtosis 
         end
         if isfield(RELAX_cfg, 'ExtremeAllChannelKurtosisThreshold')==0
-            RELAX_cfg.ExtremeAllChannelKurtosisThreshold=8; % Threshold kurtosis across all electrodes. This could be set lower and would catch less severe kurtosis  
+            RELAX_cfg.ExtremeAllChannelKurtosisThreshold=10; % Threshold kurtosis across all electrodes. This could be set lower and would catch less severe kurtosis  
         end
         if isfield(RELAX_cfg, 'ExtremeAbsoluteVoltageThreshold')==0
-            RELAX_cfg.ExtremeAbsoluteVoltageThreshold=500; % microvolts max or min above which will be excluded from cleaning and deleted from data
+            RELAX_cfg.ExtremeAbsoluteVoltageThreshold=1000; % microvolts max or min above which will be excluded from cleaning and deleted from data
         end
         if isfield(RELAX_cfg, 'ExtremeBlinkShiftThreshold')==0
-            RELAX_cfg.ExtremeBlinkShiftThreshold=8; % How many MAD from the median across blink affected epochs to exclude as extreme data 
+            RELAX_cfg.ExtremeBlinkShiftThreshold=10; % How many MAD from the median across blink affected epochs to exclude as extreme data 
             % (applies the higher value out of this value and the
             % RELAX_cfg.ExtremeVoltageShiftThreshold above as the
             % threshold, which caters for the fact that blinks don't affect
@@ -51,32 +51,32 @@ function [continuousEEG, epochedEEG] = RELAX_excluding_channels_and_epoching(con
             RELAX_cfg.ExtremeDriftSlopeThreshold=-4; % slope of log frequency log power below which to reject as drift without neural activity
         end
         if isfield(RELAX_cfg, 'ProportionOfExtremeNoiseAboveWhichToRejectChannel')==0
-            RELAX_cfg.ProportionOfExtremeNoiseAboveWhichToRejectChannel=0.05; % If a channel shows extreme outlying data for more than this proportion of the total data, it is deleted
+            RELAX_cfg.ProportionOfExtremeNoiseAboveWhichToRejectChannel=0.25; % If a channel shows extreme outlying data for more than this proportion of the total data, it is deleted
         end
         if isfield(RELAX_cfg, 'ProportionOfMuscleContaminatedEpochsAboveWhichToRejectChannel')==0
-            RELAX_cfg.ProportionOfMuscleContaminatedEpochsAboveWhichToRejectChannel=0.05; % If the proportion of epochs showing muscle activity from an electrode is higher than this, the electrode is deleted. 
+            RELAX_cfg.ProportionOfMuscleContaminatedEpochsAboveWhichToRejectChannel=0.50; % If the proportion of epochs showing muscle activity from an electrode is higher than this, the electrode is deleted. 
             % Set muscle proportion before deletion to 1 to not delete electrodes based on muscle activity
         end
         if isfield(RELAX_cfg, 'MuscleSlopeThreshold')==0
-            RELAX_cfg.MuscleSlopeThreshold=-0.59; % log power log frequency slope threshold above which an epoch is marked as containing muscle
+            RELAX_cfg.MuscleSlopeThreshold=-0.31; % log power log frequency slope threshold above which an epoch is marked as containing muscle
         end
         if isfield(RELAX_cfg, 'MaxProportionOfElectrodesThatCanBeDeleted')==0
-            RELAX_cfg.MaxProportionOfElectrodesThatCanBeDeleted=0.20; % Sets the maximum proportion of electrodes that are allowed to be deleted after PREP's bad electrode deletion step
+            RELAX_cfg.MaxProportionOfElectrodesThatCanBeDeleted=0.10; % Sets the maximum proportion of electrodes that are allowed to be deleted after PREP's bad electrode deletion step
         end
     elseif exist('RELAX_cfg', 'var')==0     
         RELAX_cfg.ExtremeVoltageShiftThreshold=25; %MAD from the median of all epochs for each electrode against itself. This could be set lower and would catch less severe pops
-        RELAX_cfg.ExtremeImprobableVoltageDistributionThreshold=8; %SD from the mean of all epochs for each electrode against itself. This could be set lower and would catch less severe improbable data
+        RELAX_cfg.ExtremeImprobableVoltageDistributionThreshold=10; %SD from the mean of all epochs for each electrode against itself. This could be set lower and would catch less severe improbable data
         RELAX_cfg.ms_per_sample=(1000/continuousEEG.srate);
-        RELAX_cfg.ExtremeSingleChannelKurtosisThreshold=8; % SD from the mean of the single electrodes. This could be set lower and would catch less severe kurtosis 
-        RELAX_cfg.ExtremeAllChannelKurtosisThreshold=8; % SD from the mean of all electrodes. This could be set lower and would catch less severe kurtosis  
-        RELAX_cfg.ExtremeAbsoluteVoltageThreshold=500; % microvolts max or min above which will be excluded from cleaning and deleted from data
-        RELAX_cfg.ExtremeBlinkShiftThreshold=3; % How many MAD from the median of blink affected epochs to exclude as extreme data
+        RELAX_cfg.ExtremeSingleChannelKurtosisThreshold=10; % SD from the mean of the single electrodes. This could be set lower and would catch less severe kurtosis 
+        RELAX_cfg.ExtremeAllChannelKurtosisThreshold=10; % SD from the mean of all electrodes. This could be set lower and would catch less severe kurtosis  
+        RELAX_cfg.ExtremeAbsoluteVoltageThreshold=1000; % microvolts max or min above which will be excluded from cleaning and deleted from data
+        RELAX_cfg.ExtremeBlinkShiftThreshold=10; % How many MAD from the median of blink affected epochs to exclude as extreme data
         RELAX_cfg.ExtremeDriftSlopeThreshold=-4; % slope of log frequency log power below which to reject as drift without neural activity
-        RELAX_cfg.ProportionOfExtremeNoiseAboveWhichToRejectChannel=0.05; % Proportion of data where channel shows extreme noise before channel is deleted
-        RELAX_cfg.MuscleSlopeThreshold=-0.59; % log power log frequency slope threshold above which an epoch is marked as containing muscle
-        RELAX_cfg.ProportionOfMuscleContaminatedEpochsAboveWhichToRejectChannel=0.05; % If the proportion of epochs showing muscle activity from an electrode is higher than this, the electrode is deleted. 
+        RELAX_cfg.ProportionOfExtremeNoiseAboveWhichToRejectChannel=0.25; % Proportion of data where channel shows extreme noise before channel is deleted
+        RELAX_cfg.MuscleSlopeThreshold=-0.31; % log power log frequency slope threshold above which an epoch is marked as containing muscle
+        RELAX_cfg.ProportionOfMuscleContaminatedEpochsAboveWhichToRejectChannel=0.50; % If the proportion of epochs showing muscle activity from an electrode is higher than this, the electrode is deleted. 
         % Set muscle proportion before deletion to 1 to not delete electrodes based on muscle activity
-        RELAX_cfg.MaxProportionOfElectrodesThatCanBeDeleted=0.20; % Sets the maximum proportion of electrodes that are allowed to be deleted after PREP's bad electrode deletion step
+        RELAX_cfg.MaxProportionOfElectrodesThatCanBeDeleted=0.10; % Sets the maximum proportion of electrodes that are allowed to be deleted after PREP's bad electrode deletion step
     end
     
     continuousEEG.RELAX.ListOfChannelsAfterRejections={continuousEEG.chanlocs.labels}; % Get list of channels currently present

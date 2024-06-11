@@ -57,9 +57,9 @@ function [continuousEEG, epochedEEG] = RELAX_blinks_IQR_method(continuousEEG, ep
     disp(Message);
     % Use TESA to apply butterworth filter: 
     if strcmp(RELAX_cfg.LowPassFilterAt_6Hz_BeforeDetectingBlinks,'no')
-        EEGEyeOnly = RELAX_filtbutter( EEGEyeOnly, 1, 25, 4, 'bandpass' );
+        EEGEyeOnly = RELAX_filtbutter( EEGEyeOnly, 1, 25, 4, 'bandpass','acausal');
     elseif strcmp(RELAX_cfg.LowPassFilterAt_6Hz_BeforeDetectingBlinks,'yes')
-        EEGEyeOnly = RELAX_filtbutter( EEGEyeOnly, 1, 6, 4, 'bandpass' );
+        EEGEyeOnly = RELAX_filtbutter( EEGEyeOnly, 1, 6, 4, 'bandpass','acausal');
     end
 
     Message = ['Filtering here only performed to better detect blinks, output data will still be bandpass filtered from ', num2str(RELAX_cfg.HighPassFilter), ' to ', num2str(RELAX_cfg.LowPassFilter)];
@@ -117,7 +117,7 @@ function [continuousEEG, epochedEEG] = RELAX_blinks_IQR_method(continuousEEG, ep
     % Mark the blink peak into the event list:
     if continuousEEG.RELAX.IQRmethodDetectedBlinks==1
         for x=1:size(BlinkRunIndex,2) % v1.1.3 update, removed an erroneous "- 1" after size(BlinkRunIndex,2), thankyou Mana Biabani for the update
-            if (BlinkMaxLatency(1,x)-400>0) && (BlinkMaxLatency(1,x)+400)<size(EEG.data,2)
+            if (round(BlinkMaxLatency(1,x)-400/RELAX_cfg.ms_per_sample)>0) && (round(BlinkMaxLatency(1,x)+400/RELAX_cfg.ms_per_sample))<size(EEG.data,2) %v1.1.6 update to address issue for sample rates above 1000Hz
                 continuousEEG.event(size(continuousEEG.event,2)+1).type='EyeBlinkLeftBase';
                 continuousEEG.event(size(continuousEEG.event,2)).latency=BlinkMaxLatency(1,x)-(400/RELAX_cfg.ms_per_sample);
                 continuousEEG.event(size(continuousEEG.event,2)+1).type='EyeBlinkMax';

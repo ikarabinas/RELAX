@@ -16,7 +16,7 @@
 %% pop_RELAX:
 % Clean data with RELAX via the EEGLAB gui:
 function [RELAX_cfg, FileNumber, CleanedMetrics, RawMetrics, RELAXProcessingRoundOneAllParticipants, RELAXProcessingRoundTwoAllParticipants, RELAXProcessing_wICA_AllParticipants,...
-        RELAXProcessing_ICA_AllParticipants, RELAXProcessingRoundThreeAllParticipants, RELAX_issues_to_check, RELAXProcessingExtremeRejectionsAllParticipants] = pop_RELAX(RELAX_cfg)
+        RELAXProcessing_ICA_AllParticipants, RELAXProcessingRoundThreeAllParticipants, RELAX_issues_to_check, RELAX_issues_to_check_2nd_run, RELAXProcessingExtremeRejectionsAllParticipants] = pop_RELAX(RELAX_cfg)
 
 %% DEPENDENCIES (toolboxes you need to install, and cite if you use this script):
 % use fileseparators 'filesep' for increased compatability if necessary (replace the \ with a filesep [outside of quotes]) 
@@ -36,9 +36,6 @@ function [RELAX_cfg, FileNumber, CleanedMetrics, RawMetrics, RELAXProcessingRoun
 % http://www.fieldtriptoolbox.org/
 % Robert Oostenveld, Pascal Fries, Eric Maris, and Jan-Mathijs Schoffelen. FieldTrip: Open Source Software for Advanced Analysis of MEG, EEG, and Invasive Electrophysiological Data. Computational Intelligence and Neuroscience, vol. 2011, Article ID 156869, 9 pages, 2011. doi:10.1155/2011/156869.
 
-% fastica:
-% http://research.ics.aalto.fi/ica/fastica/code/dlcode.shtml 
-
 % ICLabel in your eeglab folder as a plugin or via the github:
 % https://github.com/sccn/ICLabel
 
@@ -51,12 +48,12 @@ end
 
 % Specify your electrode locations with the correct cap file:
 if ~isfield(RELAX_cfg,'caploc')
-    RELAX_cfg.caploc='D:\Cap_Location_Files\standard-10-5-cap385.elp'; %path containing electrode positions
+    RELAX_cfg.caploc='C:\Analysis_Tools\CapLocationFiles\standard-10-5-cap385.elp'; %path containing electrode positions
 end
 
 % Specify the to be processed file locations:
 if ~isfield(RELAX_cfg,'myPath')
-    RELAX_cfg.myPath='D:\DATA_TO_BE_PREPROCESSED\';
+    RELAX_cfg.myPath='C:\DATA_TO_BE_PREPROCESSED\';
 end
 
 %% Parameters that can be specified:
@@ -89,26 +86,35 @@ end
 % delete.
 
 %% DEFAULT SETTINGS:
+if ~isfield(RELAX_cfg,'Perform_targeted_wICA')
+    RELAX_cfg.Perform_targeted_wICA=1; % This is the recommended artifact reduction method.
+end
 if ~isfield(RELAX_cfg,'Do_MWF_Once')
-    RELAX_cfg.Do_MWF_Once=1; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no).
+    RELAX_cfg.Do_MWF_Once=0; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no).
 end
 if ~isfield(RELAX_cfg,'Do_MWF_Twice')
-    RELAX_cfg.Do_MWF_Twice=1; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no).
+    RELAX_cfg.Do_MWF_Twice=0; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no).
 end
 if ~isfield(RELAX_cfg,'Do_MWF_Thrice')
-    RELAX_cfg.Do_MWF_Thrice=1; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no). I think cleaning drift in this is a good idea.
+    RELAX_cfg.Do_MWF_Thrice=0; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no). I think cleaning drift in this is a good idea.
 end
 if ~isfield(RELAX_cfg,'Perform_wICA_on_ICLabel')
-    RELAX_cfg.Perform_wICA_on_ICLabel=1; % 1 = Perform wICA on artifact components marked by ICLabel (1 for yes, 0 for no).
+    RELAX_cfg.Perform_wICA_on_ICLabel=0; % 1 = Perform wICA on artifact components marked by ICLabel (1 for yes, 0 for no).
 end
 if ~isfield(RELAX_cfg,'Perform_ICA_subtract')
     RELAX_cfg.Perform_ICA_subtract=0; % 1 = Perform ICA subtract on artifact components marked by ICLabel (1 for yes, 0 for no) (non-optimal, intended to be optionally used separately to wICA rather than additionally)
 end
 if ~isfield(RELAX_cfg,'ICA_method')
-    RELAX_cfg.ICA_method='fastica_symm';
+    RELAX_cfg.ICA_method='picard';
 end
 if ~isfield(RELAX_cfg,'Report_all_ICA_info')
     RELAX_cfg.Report_all_ICA_info='no'; % set to yes to provide detailed report of ICLabel artifact information. Runs ~20s slower per file.
+end
+if ~isfield(RELAX_cfg,'Clean_other_comps')
+    RELAX_cfg.Clean_other_comps='no'; % set to yes to clean independent components other than blinks and muscle activity
+end
+if ~isfield(RELAX_cfg,'ICLabel_thresholds')
+    RELAX_cfg.ICLabel_thresholds=[0 0 0 0 0 0 0]; 
 end
 if ~isfield(RELAX_cfg,'computerawmetrics')
     RELAX_cfg.computerawmetrics=1; % Compute blink and muscle metrics from the raw data?
@@ -135,25 +141,25 @@ if ~isfield(RELAX_cfg,'ProportionWorstEpochsForDrift')
     RELAX_cfg.ProportionWorstEpochsForDrift=0.30; % Maximum proportion of epochs to include in the mask from drift artifact type.
 end
 if ~isfield(RELAX_cfg,'ExtremeVoltageShiftThreshold')
-    RELAX_cfg.ExtremeVoltageShiftThreshold=20; % Threshold MAD from the median all epochs for each electrode against the same electrode in different epochs. This could be set lower and would catch less severe voltage shifts within the epoch
+    RELAX_cfg.ExtremeVoltageShiftThreshold=25; % Threshold MAD from the median all epochs for each electrode against the same electrode in different epochs. This could be set lower and would catch less severe voltage shifts within the epoch
 end
 if ~isfield(RELAX_cfg,'ExtremeAbsoluteVoltageThreshold')
-    RELAX_cfg.ExtremeAbsoluteVoltageThreshold=500; % microvolts max or min above which will be excluded from cleaning and deleted from data
+    RELAX_cfg.ExtremeAbsoluteVoltageThreshold=1000; % microvolts max or min above which will be excluded from cleaning and deleted from data
 end
 if ~isfield(RELAX_cfg,'ExtremeImprobableVoltageDistributionThreshold')
-    RELAX_cfg.ExtremeImprobableVoltageDistributionThreshold=8; % Threshold SD from the mean of all epochs for each electrode against the same electrode in different epochs. This could be set lower and would catch less severe improbable data
+    RELAX_cfg.ExtremeImprobableVoltageDistributionThreshold=10; % Threshold SD from the mean of all epochs for each electrode against the same electrode in different epochs. This could be set lower and would catch less severe improbable data
 end
 if ~isfield(RELAX_cfg,'ExtremeSingleChannelKurtosisThreshold')
-    RELAX_cfg.ExtremeSingleChannelKurtosisThreshold=8; % Threshold kurtosis of each electrode against the same electrode in different epochs. This could be set lower and would catch less severe kurtosis 
+    RELAX_cfg.ExtremeSingleChannelKurtosisThreshold=10; % Threshold kurtosis of each electrode against the same electrode in different epochs. This could be set lower and would catch less severe kurtosis 
 end
 if ~isfield(RELAX_cfg,'ExtremeAllChannelKurtosisThreshold')
-    RELAX_cfg.ExtremeAllChannelKurtosisThreshold=8; % Threshold kurtosis across all electrodes. This could be set lower and would catch less severe kurtosis
+    RELAX_cfg.ExtremeAllChannelKurtosisThreshold=10; % Threshold kurtosis across all electrodes. This could be set lower and would catch less severe kurtosis
 end
 if ~isfield(RELAX_cfg,'ExtremeDriftSlopeThreshold')
     RELAX_cfg.ExtremeDriftSlopeThreshold=-4; % slope of log frequency log power below which to reject as drift without neural activity
 end
 if ~isfield(RELAX_cfg,'ExtremeBlinkShiftThreshold')
-    RELAX_cfg.ExtremeBlinkShiftThreshold=8; % How many MAD from the median across blink affected epochs to exclude as extreme data 
+    RELAX_cfg.ExtremeBlinkShiftThreshold=10; % How many MAD from the median across blink affected epochs to exclude as extreme data 
 end
 % (applies the higher value out of this value and the
 % RELAX_cfg.ExtremeVoltageShiftThreshold above as the
@@ -203,12 +209,30 @@ end
 if ~isfield(RELAX_cfg,'HorizontalEyeMovementFocus')
     RELAX_cfg.HorizontalEyeMovementFocus=200; % Buffer window, masking periods earlier and later than the time where horizontal eye movements exceed the threshold.
 end
+if ~isfield(RELAX_cfg,'LowPassFilterBeforeMWF')
+    RELAX_cfg.LowPassFilterBeforeMWF='no'; % set as no for the updated implementation, avoiding low pass filtering prior to MWF reduces chances of rank deficiencies, increasing potential values for MWF delay period 
+end
+if ~isfield(RELAX_cfg,'FilterType')
+    RELAX_cfg.FilterType='Butterworth'; % set as 'pop_eegfiltnew' to use EEGLAB's filter or 'Butterworth' to use Butterworth filter
+end
+if ~isfield(RELAX_cfg,'causal_or_acausal_filter')
+    RELAX_cfg.causal_or_acausal_filter='acausal'; % set as 'acausal' or 'causal'. 
+end
+if ~isfield(RELAX_cfg,'NotchFilterType')
+    RELAX_cfg.NotchFilterType='Butterworth'; % set as 'Butterworth' to use Butterworth filter or 'ZaplinePlus' to use ZaplinePlus. ZaplinePlus works best on data sampled at 512Hz or below, consider downsampling if above this.
+end
 if ~isfield(RELAX_cfg,'HighPassFilter')
-    RELAX_cfg.HighPassFilter=0.25; % Sets the high pass filter. 1Hz is best for ICA decomposition if you're examining just oscillatory data, 0.25Hz seems to be the highest before ERPs are adversely affected by filtering 
+    RELAX_cfg.HighPassFilter=0.5; % Sets the high pass filter. 1Hz is best for ICA decomposition if you're examining just oscillatory data, 0.25Hz seems to be the highest before ERPs are adversely affected by filtering 
 end
 %(lower than 0.2Hz may be better, but I find a minority of my files show drift at 0.3Hz even).
 if ~isfield(RELAX_cfg,'LowPassFilter')
     RELAX_cfg.LowPassFilter=80; % If you filter out data below 75Hz, you can't use the objective muscle detection method
+end
+if ~isfield(RELAX_cfg,'DownSample')
+    RELAX_cfg.DownSample=0; % set to 1 if you wish to downsample the data
+end
+if ~isfield(RELAX_cfg,'DownSample_to_X_Hz')
+    RELAX_cfg.DownSample_to_X_Hz=250; % frequency to downsample to (in samples per second / Hz)
 end
 if ~isfield(RELAX_cfg,'LineNoiseFrequency')
     RELAX_cfg.LineNoiseFrequency=50; % Frequencies for bandstop filter in order to address line noise (set to 60 in countries with 60Hz line noise, and 50 in countries with 50Hz line noise).
@@ -237,77 +261,37 @@ if ~isfield(RELAX_cfg,'OnlyIncludeTaskRelatedEpochs')
     RELAX_cfg.OnlyIncludeTaskRelatedEpochs=0; % If this =1, the MWF clean and artifact templates will only include data within 5 seconds of a task trigger (other periods will be marked as NaN, which the MWF script ignores).
 end
 if ~isfield(RELAX_cfg,'MuscleSlopeThreshold')
-    RELAX_cfg.MuscleSlopeThreshold=-0.59; %log-frequency log-power slope threshold for muscle artifact. Less stringent = -0.31, Middle Stringency = -0.59 or more stringent = -0.72, more negative thresholds remove more muscle.
+    RELAX_cfg.MuscleSlopeThreshold=-0.31; %log-frequency log-power slope threshold for muscle artifact. Less stringent = -0.31, Middle Stringency = -0.59 or more stringent = -0.72, more negative thresholds remove more muscle.
 end
 if ~isfield(RELAX_cfg,'MaxProportionOfDataCanBeMarkedAsMuscle')
     RELAX_cfg.MaxProportionOfDataCanBeMarkedAsMuscle=0.50;  % Maximum amount of data periods to be marked as muscle artifact for cleaning by the MWF. You want at least a reasonable amount of both clean and artifact templates for effective cleaning.
 end
 % I set this reasonably high, because otherwise muscle artifacts could considerably influence the clean mask and add noise into the data
 if ~isfield(RELAX_cfg,'ProportionOfMuscleContaminatedEpochsAboveWhichToRejectChannel')
-    RELAX_cfg.ProportionOfMuscleContaminatedEpochsAboveWhichToRejectChannel=0.05; % If the proportion of epochs showing muscle activity from an electrode is higher than this, the electrode is deleted. 
+    RELAX_cfg.ProportionOfMuscleContaminatedEpochsAboveWhichToRejectChannel=0.50; % If the proportion of epochs showing muscle activity from an electrode is higher than this, the electrode is deleted. 
 end
 % Set muscle proportion before deletion to 1 to not delete electrodes based on muscle activity
 if ~isfield(RELAX_cfg,'ProportionOfExtremeNoiseAboveWhichToRejectChannel')
-    RELAX_cfg.ProportionOfExtremeNoiseAboveWhichToRejectChannel=0.05; % If the proportion of all epochs from a single electrode that are marked as containing extreme artifacts is higher than this, the electrode is deleted
+    RELAX_cfg.ProportionOfExtremeNoiseAboveWhichToRejectChannel=0.25; % If the proportion of all epochs from a single electrode that are marked as containing extreme artifacts is higher than this, the electrode is deleted
 end
 if ~isfield(RELAX_cfg,'MaxProportionOfElectrodesThatCanBeDeleted')
-    RELAX_cfg.MaxProportionOfElectrodesThatCanBeDeleted=0.20; % Sets the maximum proportion of electrodes that are allowed to be deleted after PREP's bad electrode deletion step
+    RELAX_cfg.MaxProportionOfElectrodesThatCanBeDeleted=0.10; % Sets the maximum proportion of electrodes that are allowed to be deleted after PREP's bad electrode deletion step
 end
 if ~isfield(RELAX_cfg,'InterpolateRejectedElectrodesAfterCleaning')
     RELAX_cfg.InterpolateRejectedElectrodesAfterCleaning='no'; % Interpolate rejected electrodes back into the data after each file has been cleaned and before saving the cleaned data?
 end
-if ~isfield(RELAX_cfg,'MWFDelayPeriod')
-    RELAX_cfg.MWFDelayPeriod=8; % The MWF includes both spatial and temporal information when filtering out artifacts. Longer delays apparently improve performance. 
+if ~isfield(RELAX_cfg,'MWFDelayPeriod_for_eye_movements')
+    RELAX_cfg.MWFDelayPeriod_for_eye_movements=10; % The MWF includes both spatial and temporal information when filtering out artifacts. Longer delays apparently improve performance. 
 end
-%% Notes on the above parameter settings:
-% OnlyIncludeTaskRelatedEpochs: this means the MWF cleaning templates 
-% won't be distracted by potential large artifacts outside of task related
-% periods. However, it also may mean that event related periods are
-% included in the artifact template (to be removed). If artifact masks land
-% disproportionately around triggers (or certain types of triggers), my
-% sense is that all the EEG activity time locked to that trigger will be
-% considered an artifact and filtered out by the MWF (including ERPs),
-% potentially reducing your ERP for example. An alternative solution to
-% this would be to record a sufficient amount of activity before / after
-% the task related activity, which includes all the same artifacts as
-% within the task, but also a sufficient amount of clean data. Then use
-% this data to create the artifact masks (then perhaps marking the task 
-% related data as only either clean, or NaNs if they contain artifacts
-% (which will be cleaned but aren't thought of as artifacts for the
-% artifact template). This would prevent the ERP activity of interest from
-% being included in the artifact tempalte (and potentially cleaned)
-
-% Delay periods >5 can lead to generalised eigenvector rank deficiency
-% in some files, and if this occurs cleaning is ineffective. Delay
-% period = 5 was used by Somers et al (2018). The rank deficiency is
-% likely to be because data filtering creates a temporal
-% dependency between consecutive datapoints, reducing their
-% independence when including the temporal aspect in the MWF
-% computation. To address this, the MWF function attempts MWF cleaning
-% at the delay period set above, but if rank deficiency occurs,
-% it reduces the delay period by 1 and try again (for 3
-% iterations).
-
-% Using robust detrending (which does not create any temporal
-% dependence,unlike filtering) may be an alternative which avoids rank
-% deficiency (but our initial test suggested this led to worse cleaning
-% than filtering)
-
-% MuscleSlopeThreshold: (-0.31 = data from paralysed participants showed no
-% independent components with a slope value more positive than this (so
-% excluding slopes above this threshold means only excluding data that we
-% know must be influenced by EMG). Using -0.31 as the threshold means
-% possibly leaving low level EMG data in, and only eliminating the data we
-% know is definitely EMG)
-% (-0.59 is where the histograms between paralysed ICs and EMG ICs cross,
-% so above this value contains a very small amount of the brain data, 
-% and over 50% of the EMG data. Above this point, data is more likely to be
-% EMG than brain)
-% (-0.72 is the maximum of the histogram of the paralysed IC data, so
-% excluding more positive values than this will exclude most of the EMG
-% data, but also some brain data).
-
-% Fitzgibbon, S. P., DeLosAngeles, D., Lewis, T. W., Powers, D. M. W., Grummett, T. S., Whitham, E. M., ... & Pope, K. J. (2016). Automatic determination of EMG-contaminated components and validation of independent component analysis using EEG during pharmacologic paralysis. Clinical Neurophysiology, 127(3), 1781-1793.
+if ~isfield(RELAX_cfg,'MWFDelayPeriod_for_muscle_artifacts')
+    RELAX_cfg.MWFDelayPeriod_for_muscle_artifacts=10; % The MWF includes both spatial and temporal information when filtering out artifacts. Longer delays apparently improve performance. 
+end
+if ~isfield(RELAX_cfg,'MWF_delay_spacing_for_eye_movements')
+    RELAX_cfg.MWF_delay_spacing_for_eye_movements=16; % The MWF includes both spatial and temporal information when filtering out artifacts. Longer delays apparently improve performance. 
+end
+if ~isfield(RELAX_cfg,'MWF_delay_spacing_for_muscle_artifacts')
+    RELAX_cfg.MWF_delay_spacing_for_muscle_artifacts=2; % The MWF includes both spatial and temporal information when filtering out artifacts. Longer delays apparently improve performance. 
+end
 
 %% GENERATE THE GUI
 
@@ -336,41 +320,42 @@ commandload3 = [ '[filetoprocess file_path] = uigetfile(''*.set'', ''Select the 
     'clear filetoprocess tagtest;' ];
 
 % ICA options
-wICA_or_ICA={'Reduce ICA artifacts with wICA','Subtract ICA artifacts','No ICA artifact reduction'};
-icaOptions = {'extended_infomax_ICA','cudaica','fastica_symm','fastica_defl','amica'};
+wICA_or_ICA={'Reduce artifacts with targeted wICA (recommended)','Reduce artifacts with wICA','Subtract ICA artifacts','No ICA artifact reduction'};
+icaOptions = {'picard','extended_infomax_ICA','cudaica','fastica_symm','fastica_defl','amica'};
 ProbabilityOfBlinksOptions = {'data almost certainly has blinks', 'data might not have blinks', 'data definitely does not have blinks'};
 YesNoOptions={'no','yes'};
+YesNoOptionsLowPassFilterForBlinks={'no - default (works in the vast majority of cases)','yes - apply if RELAX is not detecting blinks because of high power alpha'};
+BandPassFilterOptions={'Acausal Butterworth (typical)','Causal Butterworth','pop_eegfiltnew'};
+LineNoiseOptions={'Butterworth','ZaplinePlus'};
 
 % GUI layout
-geometry = {[0.5 1.0 0.2 1.0 1.0 0.2] ... % setting directory / file to process
+geometry = {[0.8 2.0 0.3 1.0 2.0 0.3 2 0.6] ... % setting directory / file to process / cap location file
             1 ...
-            [0.6 1.5 0.2 0.75 1.2] ... % setting cap location file and electrodes to exclude
+            [0.75 0.8 1 0.5 0.8 0.3 0.8 0.2] ... % [0.6 1.5 0.2 0.75 0.8 0.8 0.3 0.8 0.2] setting electrodes to exclude
             1 ...
-            [5 .8 .5 2 0.5] ... % bandpass filter settings
+            [2 0.9 0.9 4 1.1 2 2 2 1.2] ... % metrics and bandpass filter settings
             1 ...
             [1.4 0.2 0.2 1.4 0.2 0.2 1.3 0.2] ... % electrode rejection settings
             1 ...
-            [1] ...
+            [1.6 1.3 0.3 0.8 0.3 0.7 0.3] ... % extreme period rejection settings
             1 ...
-            [0.7 0.3 1.3 0.3 0.8 0.3 0.7 0.3] ... % extreme period rejection settings
+            [0.7 0.3 0.9 0.2 1.3 0.2 1.3 0.2]... % extreme period rejection settings MAD blinks and drift
             1 ...
-            [0.9 0.2 1.3 0.2 1.3 0.2]... % extreme period rejection settings MAD blinks and drift
+            [0.6 0.4 0.4 0.6 0.6 0.2 1 0.2 0.6 0.2 0.6 0.2]... %Wiener filter settings 
             1 ...
-            [0.6 0.2 0.6 0.4 0.4 0.6 1]... %Wiener filter settings 
+            [2.5 0.3 1.2 1.9 0.3]... % muscle marking for MWF
             1 ...
-            [0.6 0.6 0.4 0.8]... % wICA settings 
+            [2.5 0.3 1.2 1.9 0.3]... % drift marking for MWF
             1 ...
-            [0.9 1 1 0.7 1]... % Blink probability and electrode options
+            [0.6 1.2 0.4 0.5 1.2 0.4]... % wICA settings 
+            1 ...
+            [2 0.6 0.25 0.6 0.25 0.6 0.25 0.6 0.25 0.7 0.25 0.7 0.25 0.6 0.25]... % ICLabel classifications: ['Brain' 'Muscle' 'Eye'	'Heart'	'Line Noise' 'Channel Noise' 'Other']
+            1 ...
+            [1.3 1 0.3 0.9 1.5 1.6 1.5]... % Blink probability and electrode options
             1 ...
             [0.95 0.9 1 0.9]... % eye movement affected electrodes
             1 ...
-            [2.5 0.3 0.3 1.9 0.3]... % muscle marking for MWF
-            1 ...
-            [1.7 0.2 0.05 2.2 0.2]... % drift marking for MWF
-            1 ...
             [2.2 0.3 1 2.2 0.5]... % horizontal eye movement marking for MWF
-            1 ...
-            [2 0.4 0.8 0.7 0.8]... % computing metrics? 
             1 ...
             [1.1 1.9 1.1 1.1 1.1]... % saving intermediate files?
             };
@@ -379,23 +364,32 @@ geometry = {[0.5 1.0 0.2 1.0 1.0 0.2] ... % setting directory / file to process
 uilist = {{'style', 'text', 'string', 'Raw data folder:','fontweight','bold','fontsize', 9} ...
           { 'style' 'edit'       'string' RELAX_cfg.myPath 'tag' 'datadir' ,'fontsize', 9} ... 
           { 'style' 'pushbutton' 'string' '...' 'callback' commandload1 ,'fontsize', 9}... 
-          {'style', 'text', 'string', 'File to clean (leave blank to clean >1):','fontweight','bold','fontsize', 9} ...
-          { 'style' 'edit'       'string' '' 'tag' 'filetoprocess' ,'fontsize', 9} ... 
-          { 'style' 'pushbutton' 'string' '...' 'callback' commandload3 ,'fontsize', 9}... 
-          {}...
           {'style', 'text', 'string', 'Cap Location File:','fontweight','bold','fontsize', 9} ...
           {'style', 'edit', 'string', RELAX_cfg.caploc 'tag' 'caploc' ,'fontsize', 9} ...
-          { 'style' 'pushbutton' 'string' '...' 'callback' commandload2 ,'fontsize', 9}... 
+          { 'style' 'pushbutton' 'string' '...' 'callback' commandload2 ,'fontsize', 9}...
+          {'style', 'text', 'string', 'Files to process (start file # to finish file #):','fontsize', 9} ...
+          {'style', 'edit', 'string', ['1', '  ', '2'],'fontsize', 9}...
+          {}... 
           {'style', 'text', 'string', 'Electrodes to exclude:','fontweight','bold','fontsize', 9} ...
           {'style', 'edit', 'string', ''} ...
-          {}...
-          {'style', 'text', 'string', 'Bandpass Filter (Hz) [highpass, lowpass] (0.25Hz highpass is best for ERPs, 1Hz is better for cleaning artifacts):','fontsize', 9} ...
-          {'style', 'edit', 'string', [num2str(RELAX_cfg.HighPassFilter), '  ', num2str(RELAX_cfg.LowPassFilter)],'fontsize', 9}...
-          {'style', 'text', 'string', ' ','fontsize', 9} ...
-          {'style', 'text', 'string', 'Line Noise Frequency (Hz) [eg. 50 or 60]:','fontsize', 9} ...
+          {'style', 'text', 'string', 'Line Noise Frequency [eg. 50 or 60]:','fontsize', 9} ...
           {'style', 'edit', 'string', RELAX_cfg.LineNoiseFrequency,'fontsize', 9}...
+          {'style', 'text', 'string', 'Downsample Data?','fontweight','bold','fontsize', 9} ...
+          {'style', 'popupmenu', 'string', YesNoOptions, 'tag', 'YesNoOpts','Value',1,'fontsize', 9} ...
+          {'style', 'text', 'string', 'Downsample to:','fontsize', 9} ...
+          {'style', 'edit', 'string', [],'fontsize', 9}...
           {}...
-          {'style', 'text', 'string', 'Max Proportion of electrodes that can be deleted as bad:','fontsize', 9} ...
+          {'style', 'text', 'string', 'Compute cleaning metrics?','fontweight','bold','fontsize', 9} ... 
+          {'Style', 'checkbox', 'string' 'Raw' 'value' RELAX_cfg.computerawmetrics 'tag' 'raw' ,'fontsize', 9} ... % Input 1
+          {'Style', 'checkbox', 'string' 'Cleaned' 'value' RELAX_cfg.computecleanedmetrics 'tag' 'clean' ,'fontsize', 9} ... % Input 2
+          {'style', 'text', 'string', 'Bandpass Filter [highpass, lowpass]:','fontweight','bold','fontsize', 9} ...
+          {'style', 'edit', 'string', [num2str(RELAX_cfg.HighPassFilter), '  ', num2str(RELAX_cfg.LowPassFilter)],'fontsize', 9}...
+          {'style', 'text', 'string', 'Bandpass Filter Type:','fontweight','bold','fontsize', 9} ...
+          {'style', 'popupmenu', 'string', BandPassFilterOptions, 'tag', 'BandPassFilterOpts','Value',1,'fontsize', 9} ...
+          {'style', 'text', 'string', 'Clean Line Noise With:','fontweight','bold','fontsize', 9} ...
+          {'style', 'popupmenu', 'string', LineNoiseOptions, 'tag', 'linenoiseOpts','Value',1,'fontsize', 9} ...
+          {}...
+          {'style', 'text', 'string', 'Max proportion of electrodes that can be deleted as bad:','fontsize', 9} ...
           {'style', 'edit', 'string', RELAX_cfg.MaxProportionOfElectrodesThatCanBeDeleted,'fontsize', 9}...
           {'style', 'text', 'string', ' ','fontsize', 9} ...
           {'style', 'text', 'string', 'Extreme noise proportion electrode deletion threshold:','fontsize', 9} ...
@@ -404,10 +398,7 @@ uilist = {{'style', 'text', 'string', 'Raw data folder:','fontweight','bold','fo
           {'style', 'text', 'string', 'Muscle noise proportion electrode deletion threshold:','fontsize', 9} ...
           {'style', 'edit', 'string', RELAX_cfg.ProportionOfMuscleContaminatedEpochsAboveWhichToRejectChannel,'fontsize', 9}...
           {}...
-          {'style', 'text', 'string', 'Extreme outlier detection thresholds, applied to each 1s period:','fontweight','bold','fontsize', 9} ...
-          {}...
-          {'style', 'text', 'string', 'Absolute voltage shift:','fontsize', 9} ...
-          {'style', 'edit', 'string', RELAX_cfg.ExtremeAbsoluteVoltageThreshold,'fontsize', 9}...
+          {'style', 'text', 'string', 'Extreme outlier thresholds, applied to each 1s period:','fontweight','bold','fontsize', 9} ...
           {'style', 'text', 'string', 'Improbable voltage value distributions (SD):','fontsize', 9} ...
           {'style', 'edit', 'string', RELAX_cfg.ExtremeImprobableVoltageDistributionThreshold,'fontsize', 9}...
           {'style', 'text', 'string', 'Single channel kurtosis:','fontsize', 9} ...
@@ -415,26 +406,63 @@ uilist = {{'style', 'text', 'string', 'Raw data folder:','fontweight','bold','fo
           {'style', 'text', 'string', 'All channel kurtosis:','fontsize', 9} ...
           {'style', 'edit', 'string', RELAX_cfg.ExtremeAllChannelKurtosisThreshold,'fontsize', 9}...
           {}...
+          {'style', 'text', 'string', 'Absolute voltage shift:','fontsize', 9} ...
+          {'style', 'edit', 'string', RELAX_cfg.ExtremeAbsoluteVoltageThreshold,'fontsize', 9}...
           {'style', 'text', 'string', 'MAD from median voltage shift:','fontsize', 9} ...
           {'style', 'edit', 'string', RELAX_cfg.ExtremeVoltageShiftThreshold,'fontsize', 9}...
           {'style', 'text', 'string', 'MAD from median voltage shift in blink affected epochs:','fontsize', 9} ...
           {'style', 'edit', 'string', RELAX_cfg.ExtremeBlinkShiftThreshold,'fontsize', 9}...
-          {'style', 'text', 'string', 'Log-frequency Log-power slope for detecting drift threshold:','fontsize', 9} ...
+          {'style', 'text', 'string', 'Log-freq Log-power slope threshold for drift:','fontsize', 9} ...
           {'style', 'edit', 'string', RELAX_cfg.ExtremeDriftSlopeThreshold,'fontsize', 9}...
-          {}...  
-          {'style', 'text', 'string', 'MWF Delay Period:','fontweight','bold','fontsize', 9} ...
-          {'style', 'edit', 'string', RELAX_cfg.MWFDelayPeriod,'fontsize', 9}...
+          {}...
           {'style', 'text', 'string', 'Use MWF to clean:','fontweight','bold','fontsize', 9} ... 
           {'Style', 'checkbox', 'string' 'Muscle' 'value' RELAX_cfg.Do_MWF_Once 'tag' 'once' ,'fontsize', 9} ... % Input 1
           {'Style', 'checkbox', 'string' 'Blinks' 'value' RELAX_cfg.Do_MWF_Twice 'tag' 'twice' ,'fontsize', 9} ... % Input 2
           {'Style', 'checkbox', 'string' 'HEOG/drift' 'value' RELAX_cfg.Do_MWF_Thrice 'tag' 'thrice' ,'fontsize', 9} ... % Input 3; Line 2
-          {'style', 'text', 'string', ' ','fontsize', 9} ...
+          {'style', 'text', 'string', 'MWF delay for muscle:','fontsize', 9} ...
+          {'style', 'edit', 'string', RELAX_cfg.MWFDelayPeriod_for_muscle_artifacts,'fontsize', 9}...
+          {'style', 'text', 'string', 'MWF delay for eye movements:','fontsize', 9} ...
+          {'style', 'edit', 'string', RELAX_cfg.MWFDelayPeriod_for_eye_movements,'fontsize', 9}...
+          {'style', 'text', 'string', 'Delay spacing for muscle:','fontsize', 9} ...
+          {'style', 'edit', 'string', RELAX_cfg.MWF_delay_spacing_for_muscle_artifacts,'fontsize', 9}...
+          {'style', 'text', 'string', 'Delay spacing for eyes:','fontsize', 9} ...
+          {'style', 'edit', 'string', RELAX_cfg.MWF_delay_spacing_for_eye_movements,'fontsize', 9}...
           {}...
-          {'style', 'text', 'string', 'Clean Artifacts with ICA?','fontsize', 9} ...
+          {'style', 'text', 'string', 'Max proportion marked as muscle for MWF cleaning:','fontsize', 9} ...
+          {'style', 'edit', 'string', RELAX_cfg.MaxProportionOfDataCanBeMarkedAsMuscle,'fontsize', 9}...
+          {'style', 'text', 'string', ' ','fontsize', 9} ...
+          {'style', 'text', 'string', 'Horizontal eye movement threshold (MAD from median) for MWF cleaning:','fontsize', 9} ...
+          {'style', 'edit', 'string', RELAX_cfg.HorizontalEyeMovementThreshold,'fontsize', 9}...
+          {}...
+          {'style', 'text', 'string', 'Single electrode drift threshold for MWF cleaning:','fontsize', 9} ...
+          {'style', 'edit', 'string', RELAX_cfg.DriftSeverityThreshold,'fontsize', 9}...
+          {'style', 'text', 'string', ' ','fontsize', 9} ...
+          {'style', 'text', 'string', 'Max proportion marked as drift for MWF cleaning:','fontsize', 9} ...
+          {'style', 'edit', 'string', RELAX_cfg.ProportionWorstEpochsForDrift,'fontsize', 9}...
+          {}...
+          {'style', 'text', 'string', 'Clean Artifacts with ICA?','fontweight','bold','fontsize', 9} ...
           {'style', 'popupmenu', 'string', wICA_or_ICA, 'tag', 'wICA_or_ICAOpts','Value',1,'fontsize', 9} ...
-          {'style', 'text', 'string', 'ICA method:','fontsize', 9} ...
-          {'style', 'popupmenu', 'string', icaOptions, 'tag', 'icaOpts','Value',3,'fontsize', 9} ...
+          {'style', 'text', 'string', 'ICA algorithm:','fontsize', 9} ...
+          {'style', 'popupmenu', 'string', icaOptions, 'tag', 'icaOpts','Value',1,'fontsize', 9} ...
+          {'style', 'text', 'string', 'Clean artifact components other than eye and muscle?','fontsize', 9} ...
+          {'style', 'popupmenu', 'string', YesNoOptions, 'tag', 'YesNoOpts','Value',1,'fontsize', 9} ...
           {} ...
+          {'style', 'text', 'string', 'ICLabel classification min threshold for cleaning:','fontweight','bold','fontsize', 9} ... % ['Brain' 'Muscle' 'Eye'	'Heart'	'Line Noise' 'Channel Noise' 'Other']
+          {'style', 'text', 'string', 'Brain:','fontsize', 9} ...
+          {'style', 'edit', 'string', 0,'fontsize', 9}...
+          {'style', 'text', 'string', 'Muscle:','fontsize', 9} ...
+          {'style', 'edit', 'string', 0,'fontsize', 9}...
+          {'style', 'text', 'string', 'Eye:','fontsize', 9} ...
+          {'style', 'edit', 'string', 0,'fontsize', 9}...
+          {'style', 'text', 'string', 'Heart:','fontsize', 9} ...
+          {'style', 'edit', 'string', 0,'fontsize', 9}...
+          {'style', 'text', 'string', 'Line Noise:','fontsize', 9} ...
+          {'style', 'edit', 'string', 0,'fontsize', 9}...
+          {'style', 'text', 'string', 'Channel Noise:','fontsize', 9} ...
+          {'style', 'edit', 'string', 0,'fontsize', 9}...
+          {'style', 'text', 'string', 'Other:','fontsize', 9} ...
+          {'style', 'edit', 'string', 0,'fontsize', 9}...
+          {}...
           {'style', 'text', 'string', 'Does the data contain blinks?','fontweight','bold','fontsize', 9} ...
           {'style', 'popupmenu', 'string', ProbabilityOfBlinksOptions, 'tag', 'blinkOpts','Value',1,'fontsize', 9} ...
           {'style', 'text', 'string', ' ','fontsize', 9} ...
@@ -442,6 +470,8 @@ uilist = {{'style', 'text', 'string', 'Raw data folder:','fontweight','bold','fo
           {'style', 'edit', 'string', [RELAX_cfg.BlinkElectrodes{1,1} ' ' RELAX_cfg.BlinkElectrodes{2,1} ' ' RELAX_cfg.BlinkElectrodes{3,1}...
           ' ' RELAX_cfg.BlinkElectrodes{4,1} ' ' RELAX_cfg.BlinkElectrodes{5,1} ' ' RELAX_cfg.BlinkElectrodes{6,1} ...
           ' ' RELAX_cfg.BlinkElectrodes{7,1} ' ' RELAX_cfg.BlinkElectrodes{8,1} ' ' RELAX_cfg.BlinkElectrodes{9,1} ' ' RELAX_cfg.BlinkElectrodes{10,1}],'fontsize', 9} ...
+          {'style', 'text', 'string', '6Hz low pass filter before blink detection?','fontweight','bold','fontsize', 9} ...
+          {'style', 'popupmenu', 'string', YesNoOptionsLowPassFilterForBlinks, 'tag', 'YesNoOpts','Value',1,'fontsize', 9} ...
           {} ...
           {'style', 'text', 'string', 'Left sided HEOG affected electrodes:','fontsize', 9} ...
           {'style', 'edit', 'string', [RELAX_cfg.HEOGLeftpattern{1,1} ' ' RELAX_cfg.HEOGLeftpattern{1,2} ' ' RELAX_cfg.HEOGLeftpattern{1,3}...
@@ -452,29 +482,11 @@ uilist = {{'style', 'text', 'string', 'Raw data folder:','fontweight','bold','fo
           ' ' RELAX_cfg.HEOGRightpattern{1,4} ' ' RELAX_cfg.HEOGRightpattern{1,5} ' ' RELAX_cfg.HEOGRightpattern{1,6} ...
           ' ' RELAX_cfg.HEOGRightpattern{1,7} ' ' RELAX_cfg.HEOGRightpattern{1,8} ' ' RELAX_cfg.HEOGRightpattern{1,9}],'fontsize', 9} ...
           {}...
-          {'style', 'text', 'string', 'Log-frequency Log-power slope muscle artifact threshold for MWF cleaning:','fontsize', 9} ...
+          {'style', 'text', 'string', 'Log-freq Log-power slope muscle artifact threshold:','fontsize', 9} ...
           {'style', 'edit', 'string', RELAX_cfg.MuscleSlopeThreshold,'fontsize', 9}...
-          {'style', 'text', 'string', ' ','fontsize', 9} ...
-          {'style', 'text', 'string', 'Max proportion marked as muscle for MWF cleaning:','fontsize', 9} ...
-          {'style', 'edit', 'string', RELAX_cfg.MaxProportionOfDataCanBeMarkedAsMuscle,'fontsize', 9}...
-          {}...
-          {'style', 'text', 'string', 'Single electrode drift threshold for MWF cleaning:','fontsize', 9} ...
-          {'style', 'edit', 'string', RELAX_cfg.DriftSeverityThreshold,'fontsize', 9}...
-          {'style', 'text', 'string', ' ','fontsize', 9} ...
-          {'style', 'text', 'string', 'Max proportion marked as drift for MWF cleaning:','fontsize', 9} ...
-          {'style', 'edit', 'string', RELAX_cfg.ProportionWorstEpochsForDrift,'fontsize', 9}...
-          {}...
-          {'style', 'text', 'string', 'Horizontal eye movement threshold (MAD from median) for MWF cleaning:','fontsize', 9} ...
-          {'style', 'edit', 'string', RELAX_cfg.HorizontalEyeMovementThreshold,'fontsize', 9}...
           {'style', 'text', 'string', '','fontsize', 9}...
           {'style', 'text', 'string', 'Interpolate rejected electrodes back into data after cleaning?','fontsize', 9} ...
           {'style', 'popupmenu', 'string', YesNoOptions, 'tag', 'YesNoOpts','Value',1,'fontsize', 9} ...
-          {}...
-          {'style', 'text', 'string', 'File numbers to process this session (from start file # to finish file # and files in between):','fontsize', 9} ...
-          {'style', 'edit', 'string', ['1', '  ', '2'],'fontsize', 9}...
-          {'style', 'text', 'string', 'Compute Metrics?','fontweight','bold','fontsize', 9} ... 
-          {'Style', 'checkbox', 'string' 'Raw metrics' 'value' RELAX_cfg.computerawmetrics 'tag' 'raw' ,'fontsize', 9} ... % Input 1
-          {'Style', 'checkbox', 'string' 'Cleaned metrics' 'value' RELAX_cfg.computecleanedmetrics 'tag' 'clean' ,'fontsize', 9} ... % Input 2
           {}...
           {'style', 'text', 'string', 'Save Intermediate Steps?','fontweight','bold','fontsize', 9} ... 
           {'Style', 'checkbox', 'string' 'After electrode rejection/extreme period marking' 'value' RELAX_cfg.saveextremesrejected 'tag' 'saveextremesrejected' ,'fontsize', 9} ... % Input 1
@@ -483,53 +495,86 @@ uilist = {{'style', 'text', 'string', 'Raw data folder:','fontweight','bold','fo
           {'Style', 'checkbox', 'string' 'After 3rd MWF cleaning' 'value' RELAX_cfg.saveround3 'tag' 'MWF3' ,'fontsize', 9} ... % Input 2
           };
 
-result = inputgui('geometry', geometry, 'geomvert', [1 .4 1 .4 1 0.4 1 0.4 1 0.4 1 0.4 1 0.4 1 0.4 1 0.4 1 0.4 1 0.4 1 0.4 1 0.4 1 0.4 1 0.4 1],  'uilist', uilist, 'title', 'RELAX Parameter Setting',  'helpcom', 'pophelp(''pop_RELAX'')');
+result = inputgui('geometry', geometry, 'geomvert', [1 .4 1 .4 1 0.4 1 0.4 1 0.4 1 0.4 1 0.4 1 0.4 1 0.4 1 0.4 1 0.4 1 0.4 1 0.4 1 0.4 1],  'uilist', uilist, 'title', 'RELAX Parameter Setting',  'helpcom', 'pophelp(''pop_RELAX_beta'')');
 
 % Replace default values with inputs
 RELAX_cfg.myPath = result{1};
-RELAX_cfg.filename = result{2};
-RELAX_cfg.caploc = result{3};
+RELAX_cfg.caploc = result{2};
+FilesToProcess=strsplit(strrep(result{3},',',''));
+RELAX_cfg.FilesToProcess=str2double(FilesToProcess(1,1)):str2double(FilesToProcess(1,2));
 RELAX_cfg.ElectrodesToDelete = strtrim(strsplit(strrep(result{4},',','')))';
-BandPassFilterSettings=strsplit(strrep(result{5},',',''));
+RELAX_cfg.LineNoiseFrequency=str2double(result{5});
+RELAX_cfg.DownSample=YesNoOptions{result{6}}; 
+RELAX_cfg.DownSample_to_X_Hz=str2double(result{7}); 
+RELAX_cfg.computerawmetrics=result{8};
+RELAX_cfg.computecleanedmetrics=result{9};
+BandPassFilterSettings=strsplit(strrep(result{10},',',''));
 RELAX_cfg.HighPassFilter=str2double(BandPassFilterSettings(1,1));
 RELAX_cfg.LowPassFilter=str2double(BandPassFilterSettings(1,2));
-RELAX_cfg.LineNoiseFrequency=str2double(result{6});
-RELAX_cfg.MaxProportionOfElectrodesThatCanBeDeleted=str2double(result{7});
-RELAX_cfg.ProportionOfExtremeNoiseAboveWhichToRejectChannel=str2double(result{8});
-RELAX_cfg.ProportionOfMuscleContaminatedEpochsAboveWhichToRejectChannel=str2double(result{9});
-RELAX_cfg.ExtremeAbsoluteVoltageThreshold=str2double(result{10});
-RELAX_cfg.ExtremeImprobableVoltageDistributionThreshold=str2double(result{11});
-RELAX_cfg.ExtremeSingleChannelKurtosisThreshold=str2double(result{12});
-RELAX_cfg.ExtremeAllChannelKurtosisThreshold=str2double(result{13});
-RELAX_cfg.ExtremeVoltageShiftThreshold=str2double(result{14});
-RELAX_cfg.ExtremeBlinkShiftThreshold=str2double(result{15});
-RELAX_cfg.ExtremeDriftSlopeThreshold=str2double(result{16});
-RELAX_cfg.MWFDelayPeriod=str2double(result{17});
-RELAX_cfg.Do_MWF_Once=result{18}; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no).
-RELAX_cfg.Do_MWF_Twice=result{19}; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no).
-RELAX_cfg.Do_MWF_Thrice=result{20};
-RELAX_cfg.Perform_wICA_on_ICLabel=result{21};
-RELAX_cfg.Perform_ICA_subtract=result{21}-1;
-RELAX_cfg.ICA_method = icaOptions{result{22}};
-RELAX_cfg.ProbabilityDataHasNoBlinks=(result{23})-1;
-RELAX_cfg.BlinkElectrodes= strtrim(strsplit(strrep(result{24},',','')))';
-RELAX_cfg.HEOGLeftpattern = string(strtrim(strsplit(strrep(result{25},',',''))));
-RELAX_cfg.HEOGRightpattern= string(strtrim(strsplit(strrep(result{26},',',''))));
-RELAX_cfg.MuscleSlopeThreshold=str2double(result{27});
-RELAX_cfg.MaxProportionOfDataCanBeMarkedAsMuscle=str2double(result{28});
-RELAX_cfg.DriftSeverityThreshold=str2double(result{29});
-RELAX_cfg.ProportionWorstEpochsForDrift=str2double(result{30});
+if strcmp(BandPassFilterOptions{result{11}}, 'Acausal Butterworth (typical)')   
+    RELAX_cfg.FilterType='Butterworth';
+    RELAX_cfg.causal_or_acausal_filter='acausal';
+elseif strcmp(BandPassFilterOptions{result{11}}, 'Causal Butterworth')  
+    RELAX_cfg.FilterType='Butterworth';
+    RELAX_cfg.causal_or_acausal_filter='causal';
+elseif strcmp(BandPassFilterOptions{result{11}}, 'pop_eegfiltnew') 
+    RELAX_cfg.FilterType='pop_eegfiltnew';
+end
+RELAX_cfg.NotchFilterType=LineNoiseOptions{result{12}};
+RELAX_cfg.MaxProportionOfElectrodesThatCanBeDeleted=str2double(result{13});
+RELAX_cfg.ProportionOfExtremeNoiseAboveWhichToRejectChannel=str2double(result{14});
+RELAX_cfg.ProportionOfMuscleContaminatedEpochsAboveWhichToRejectChannel=str2double(result{15});
+RELAX_cfg.ExtremeImprobableVoltageDistributionThreshold=str2double(result{16});
+RELAX_cfg.ExtremeSingleChannelKurtosisThreshold=str2double(result{17});
+RELAX_cfg.ExtremeAllChannelKurtosisThreshold=str2double(result{18});
+RELAX_cfg.ExtremeAbsoluteVoltageThreshold=str2double(result{19});
+RELAX_cfg.ExtremeVoltageShiftThreshold=str2double(result{20});
+RELAX_cfg.ExtremeBlinkShiftThreshold=str2double(result{21});
+RELAX_cfg.ExtremeDriftSlopeThreshold=str2double(result{22});
+RELAX_cfg.Do_MWF_Once=result{23}; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no).
+RELAX_cfg.Do_MWF_Twice=result{24}; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no).
+RELAX_cfg.Do_MWF_Thrice=result{25};
+RELAX_cfg.MWFDelayPeriod_for_muscle_artifacts=str2double(result{26});
+RELAX_cfg.MWFDelayPeriod_for_eye_movements=str2double(result{27});
+RELAX_cfg.MWF_delay_spacing_for_muscle_artifacts=str2double(result{28});
+RELAX_cfg.MWF_delay_spacing_for_eye_movements=str2double(result{29});
+RELAX_cfg.MaxProportionOfDataCanBeMarkedAsMuscle=str2double(result{30});
 RELAX_cfg.HorizontalEyeMovementThreshold=str2double(result{31});
-RELAX_cfg.InterpolateRejectedElectrodesAfterCleaning=YesNoOptions{result{32}};
-FilesToProcess=strsplit(strrep(result{33},',',''));
-RELAX_cfg.FilesToProcess=str2double(FilesToProcess(1,1)):str2double(FilesToProcess(1,2));
-RELAX_cfg.computerawmetrics=result{34};
-RELAX_cfg.computecleanedmetrics=result{35};
-RELAX_cfg.saveextremesrejected=result{36};
-RELAX_cfg.saveround1=result{37};
-RELAX_cfg.saveround2=result{38};
-RELAX_cfg.saveround3=result{39};
-
+RELAX_cfg.DriftSeverityThreshold=str2double(result{32});
+RELAX_cfg.ProportionWorstEpochsForDrift=str2double(result{33});
+RELAX_cfg.Perform_targeted_wICA=0;
+RELAX_cfg.Perform_wICA_on_ICLabel=0;
+RELAX_cfg.Perform_ICA_subtract=0;
+if strcmp(wICA_or_ICA{result{34}}, 'Reduce artifacts with targeted wICA (recommended)')  
+    RELAX_cfg.Perform_targeted_wICA=1;
+elseif strcmp(wICA_or_ICA{result{34}}, 'Reduce artifacts with wICA') 
+    RELAX_cfg.Perform_wICA_on_ICLabel=1;
+elseif strcmp(wICA_or_ICA{result{34}}, 'Subtract ICA artifacts') 
+    RELAX_cfg.Perform_ICA_subtract=1;
+elseif strcmp(wICA_or_ICA{result{34}}, 'No ICA artifact reduction') 
+    RELAX_cfg.Perform_targeted_wICA=0;
+    RELAX_cfg.Perform_wICA_on_ICLabel=0;
+    RELAX_cfg.Perform_ICA_subtract=0;
+end
+RELAX_cfg.ICA_method = icaOptions{result{35}};
+RELAX_cfg.Clean_other_comps=YesNoOptions{result{36}}; 
+RELAX_cfg.ICLabel_thresholds=[str2double(result{37}) str2double(result{38}) str2double(result{39}) str2double(result{40}) str2double(result{41}) str2double(result{42}) str2double(result{43})]; 
+RELAX_cfg.ProbabilityDataHasNoBlinks=(result{44})-1; %
+RELAX_cfg.BlinkElectrodes= strtrim(strsplit(strrep(result{45},',','')))';
+RELAX_cfg.LowPassFilterAt_6Hz_BeforeDetectingBlinks=YesNoOptions{result{46}};
+RELAX_cfg.HEOGLeftpattern = string(strtrim(strsplit(strrep(result{47},',',''))));
+RELAX_cfg.HEOGRightpattern= string(strtrim(strsplit(strrep(result{48},',',''))));
+RELAX_cfg.MuscleSlopeThreshold=str2double(result{49});
+RELAX_cfg.InterpolateRejectedElectrodesAfterCleaning=YesNoOptions{result{50}};
+RELAX_cfg.saveextremesrejected=result{51};
+RELAX_cfg.saveround1=result{52};
+RELAX_cfg.saveround2=result{53};
+RELAX_cfg.saveround3=result{54};
+if (RELAX_cfg.Do_MWF_Once+RELAX_cfg.Do_MWF_Twice+RELAX_cfg.Do_MWF_Thrice)>0
+    RELAX_cfg.LowPassFilterBeforeMWF='no'; % set as no for the updated implementation
+elseif (RELAX_cfg.Do_MWF_Once+RELAX_cfg.Do_MWF_Twice+RELAX_cfg.Do_MWF_Thrice)==0
+    RELAX_cfg.LowPassFilterBeforeMWF='yes';
+end
 if ~isfield(RELAX_cfg,'filename')
     RELAX_cfg.filename = [];
 end
@@ -542,7 +587,7 @@ eeglabPath = fileparts(which('eeglab'));
 MWFPluginPath=strcat(eeglabPath,'\plugins\mwf-artifact-removal-master\');
 addpath(genpath(MWFPluginPath));
 if (exist('mwf_process','file')==0)
-    warndlg('MWF toolbox may not be installed in EEGLAB plugins folder. Toolbox can be installed from: "https://github.com/exporl/mwf-artifact-removal"','MWF Cleaning Not Available');
+    warndlg('MWF toolbox may not be updated to latest version in EEGLAB plugins folder. Toolbox can be installed from: "https://github.com/exporl/mwf-artifact-removal"','MWF Cleaning Not Available');
 end
 
 toolboxlist=ver;
@@ -583,11 +628,11 @@ if (strcmp(RELAX_cfg.ICA_method,'amica')) && (exist('runamica15','file')==0)
     warndlg('AMICA may not be installed. Plugin can be installed via EEGLAB: "File" > "Manage EEGLAB Extensions"','AMICA not installed');
 end
 
-%%
-
-if RELAX_cfg.HighPassFilter>0.25
-    Warning='You have high pass filtered above 0.25, which can adversely affect ERP analyses';
+if (strcmp(RELAX_cfg.NotchFilterType,'ZaplinePlus')) && (exist('clean_data_with_zapline_plus_eeglab_wrapper','file')==0)
+    warndlg('ZaplinePlus may not be installed. Plugin can be installed via EEGLAB: "File" > "Manage EEGLAB Extensions"','ZaplinePlus not installed');
 end
+
+%%
 
 % List all files in directory
 cd(RELAX_cfg.myPath);
@@ -602,11 +647,7 @@ if ~isfield(RELAX_cfg,'FilesToProcess')
 end
 
 [RELAX_cfg, FileNumber, CleanedMetrics, RawMetrics, RELAXProcessingRoundOneAllParticipants, RELAXProcessingRoundTwoAllParticipants, RELAXProcessing_wICA_AllParticipants,...
-        RELAXProcessing_ICA_AllParticipants, RELAXProcessingRoundThreeAllParticipants, RELAX_issues_to_check, RELAXProcessingExtremeRejectionsAllParticipants] = RELAX_Wrapper (RELAX_cfg);
-   
-if RELAX_cfg.HighPassFilter>0.25
-    Warning='You have high pass filtered above 0.25, which can adversely affect ERP analyses';
-end
+        RELAXProcessing_ICA_AllParticipants, RELAXProcessingRoundThreeAllParticipants, RELAX_issues_to_check, RELAX_issues_to_check_2nd_run, RELAXProcessingExtremeRejectionsAllParticipants] = RELAX_Wrapper (RELAX_cfg);
 
 % To enable debugging if necessary:
 

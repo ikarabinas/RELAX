@@ -1,0 +1,36 @@
+Inserted a targeted wICA artifact reduction method, which specifically addresses only the artifact periods or frequencies of the ICA artifact components
+
+Inserted the option to include a delay spread in the MWF cleaning, and the option to set the delay period and delay spread for eye movements and muscle artifacts separately
+
+Removed the "beta" suffix from the test functions, as we applied the test options in our new pre-print, which demonstrated their appropriateness.
+
+Deleted the original functions that are now replaced by the functions that were previously designated as test (beta) functions.
+
+Adjusted default extreme artifact rejection settings to be less stringent in alignment with our recent publication
+
+Updated RELAX_filtbutter.m to enable users to select causal or acausal filtering.
+
+
+
+Minor changes:
+
+Updated the GUI so that it's easier to set the cleaning parameters, and includes the optimal approach by default
+
+Inserted the following code into RELAX_excluding_extreme_values.m immediately after line 246 to prevent a bug when metrics were set to be calculated but no NoiseMask was computed:
+epochedEEG.RELAXProcessing.Details.NoiseMaskFullLength=epochedEEG.RELAXProcessing.Details.NaNsForNonEvents;
+
+Adjusted line 120 in RELAX_blinks_IQR_method.m to improve functionality for sample rates >1000Hz:
+(round(BlinkMaxLatency(1,x)-400/RELAX_cfg.ms_per_sample)>0) && (round(BlinkMaxLatency(1,x)+400/RELAX_cfg.ms_per_sample))<size(EEG.data,2)
+
+Adjusted line 44 in RELAX_horizontaleye.m to refer to the correct variable (was a copy/paste error previously):
+if isfield(RELAX_cfg, 'HorizontalEyeMovementTimepointsTestWindow')==0 % 1.1.6 updated incorrect specification of this variable here.
+
+Removed warning about high-pass filter settings above 0.5Hz in RELAX_SET_PARAMETERS_AND_RUN.m
+(as both our recent results and Delorme's suggest high-pass filtering at 0.5Hz to 1Hz can be better for ERPs).
+
+Moved the warning about high sample rates to after the optional downsampling setting in RELAX_Wrapper.m
+
+
+
+
+
