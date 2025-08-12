@@ -62,7 +62,7 @@ function [continuousEEG, epochedEEG] = RELAX_drift(continuousEEG, epochedEEG, RE
     % Filter out the frequencies >5Hz to avoid marking high amplitude
     % alpha as drift (only implemented to detect drift, the output of this
     % script is not filtered differently to the input):
-    lowpassfilteredEEG = RELAX_filtbutter( epochedEEG, [], 5, 4, 'lowpass', 'acausal');
+    lowpassfilteredEEG = RELAX_filtbutter( continuousEEG, [], 5, 4, 'lowpass', 'acausal'); % v2.0.1 NWB adjusted to filter continuous data rather than epoched to avoid edge effects
     Message = ['Filtering here only performed to better detect drift, output data will still be bandpass filtered from ', num2str(RELAX_cfg.HighPassFilter), ' to ', num2str(RELAX_cfg.LowPassFilter)];
     disp(Message);
     
@@ -73,6 +73,8 @@ function [continuousEEG, epochedEEG] = RELAX_drift(continuousEEG, epochedEEG, RE
     [EEGavgref] = RELAX_average_rereference(lowpassfilteredEEG);
     Message = ['Average re-referencing here only performed to better detect drift, data for the next processing steps will not been average re-referenced yet at this point'];
     disp(Message);
+
+    [~, EEGavgref] = RELAX_epoching(EEGavgref, RELAX_cfg); % v2.0.1 NWB adjusted to epoch data here after filtering continuous data in previous step
 
     % Calculate the median across all channels, and the MAD, and the
     % threshold based on these from the number of MAD from the median that

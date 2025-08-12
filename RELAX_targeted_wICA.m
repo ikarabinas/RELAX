@@ -319,7 +319,7 @@ function [EEG] = RELAX_targeted_wICA(EEG,RELAX_cfg)
     end
     
     % Obtain muscle artifact for subtraction by high pass filtering data instead of wICA:
-    for comp_number=1:size(Component)
+    for comp_number=1:size(Component,1) % v2.0.1: NWB updated 8/8/2025 to specify which dimension of 'Component' variable should be used to determine number of components
         if ICsMostLikelyMuscle(comp_number)==1
             [z1, p1] = butter(2, 15./(EEG.srate/2), 'high');
             dataIn=Component(comp_number,:)';

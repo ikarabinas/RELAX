@@ -47,15 +47,27 @@ function [continuousEEG, epochedEEG] = RELAX_blinks_IQR_method(continuousEEG, ep
     continuousEEG.RELAX.IQRmethodDetectedBlinks=0;
     % Obtain list of non-blink affected channels, then remove them before
     % averaging blink affected channels together to detect blinks:
+    %% v2.0.1 - NWB adjusted 8/8/2025 to cater for EEG.chanlocs structures that don't list electrodes in the first column:
     NonBlinkChannelList=struct2cell(EEG.chanlocs);
-    NonBlinkChannelList=squeeze(NonBlinkChannelList(1,1,:));
+    idx=[];
+    blink_elec_checking=1;
+    while isempty(idx)
+        idx = find(strcmpi(NonBlinkChannelList, RELAX_cfg.BlinkElectrodes(blink_elec_checking,1)));
+        blink_elec_checking=blink_elec_checking+1;
+    end
+    electrode_row=rem(idx,size(NonBlinkChannelList,1));
+    if electrode_row==0
+        electrode_row=size(NonBlinkChannelList,1);
+    end
+    NonBlinkChannelList=squeeze(NonBlinkChannelList(electrode_row,1,:));
+    %%
     for s=1:size(RELAX_cfg.BlinkElectrodes,1)
         NonBlinkChannelList(strcmpi(NonBlinkChannelList(:),RELAX_cfg.BlinkElectrodes(s)))=[]; % RELAX v1.1.3 NWB adjusted to allow flexibility in the case of strings referring to electrode names
     end
     EEGEyeOnly=pop_select(EEG,'nochannel',NonBlinkChannelList);
     Message = ['electrodes removed here only to average blink affected electrodes to enable blink detection, data still contains ', num2str(continuousEEG.nbchan), ' electrodes'];
     disp(Message);
-    % Use TESA to apply butterworth filter: 
+    % Apply butterworth filter: 
     if strcmp(RELAX_cfg.LowPassFilterAt_6Hz_BeforeDetectingBlinks,'no')
         EEGEyeOnly = RELAX_filtbutter( EEGEyeOnly, 1, 25, 4, 'bandpass','acausal');
     elseif strcmp(RELAX_cfg.LowPassFilterAt_6Hz_BeforeDetectingBlinks,'yes')

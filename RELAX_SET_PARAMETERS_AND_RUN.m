@@ -112,7 +112,7 @@ clear all; close all; clc;
 % EEGLAB:
 % https://sccn.ucsd.edu/eeglab/index.php
 % Delorme, A., & Makeig, S. (2004). EEGLAB: an open source toolbox for analysis of single-trial EEG dynamics including independent component analysis. Journal of neuroscience methods, 134(1), 9-21.
-addpath('C:\Analysis_Tools\eeglab2023.0');
+addpath('C:\Analysis_Tools\eeglab2024.2');
 eeglab;
 
 % PREP pipeline to reject bad electrodes (install plugin to EEGLAB, or via the github into the EEGLAB plugin folder): 
@@ -123,25 +123,25 @@ eeglab;
 % Specify the MWF path:
 % https://github.com/exporl/mwf-artifact-removal
 % Somers, B., Francart, T., & Bertrand, A. (2018). A generic EEG artifact removal algorithm based on the multi-channel Wiener filter. Journal of neural engineering, 15(3), 036007.
-addpath(genpath('C:\Analysis_Tools\eeglab2023.0\plugins\mwf-artifact-removal-master'));
+addpath(genpath('C:\Analysis_Tools\eeglab2024.2\plugins\mwf-artifact-removal-master'));
 
 % Fieldtrip:
 % http://www.fieldtriptoolbox.org/
 % Robert Oostenveld, Pascal Fries, Eric Maris, and Jan-Mathijs Schoffelen. FieldTrip: Open Source Software for Advanced Analysis of MEG, EEG, and Invasive Electrophysiological Data. Computational Intelligence and Neuroscience, vol. 2011, Article ID 156869, 9 pages, 2011. doi:10.1155/2011/156869.
-addpath('C:\Analysis_Tools\eeglab2023.0\plugins\Fieldtrip-lite20210601');
+addpath('C:\Analysis_Tools\eeglab2024.2\plugins\Fieldtrip-lite20210601');
 
 % PICARD:
 % Can be installed from the EEGLAB plugin manager.
 
 % fastica:
 % http://research.ics.aalto.fi/ica/fastica/code/dlcode.shtml 
-addpath('C:\Analysis_Tools\eeglab2023.0\plugins\FastICA_25\');
+addpath('C:\Analysis_Tools\eeglab2024.2\plugins\FastICA_25\');
 
 % ICLabel in your eeglab folder as a plugin or via the github:
 % https://github.com/sccn/ICLabel
 
 % Specify  RELAX folder location (this toolbox):
-addpath('C:\Analysis_Tools\eeglab2023.0\plugins\RELAX-2.0.0\');
+addpath('C:\Analysis_Tools\eeglab2024.2\plugins\RELAX-2.0.1\');
 
 % Specify your electrode locations with the correct cap file:
 RELAX_cfg.caploc='C:\Analysis_Tools\CapLocationFiles\standard-10-5-cap385.elp'; % path containing electrode positions. Set to =[] if electrode locations are already in your EEG file.
@@ -149,12 +149,28 @@ RELAX_cfg.caploc='C:\Analysis_Tools\CapLocationFiles\standard-10-5-cap385.elp'; 
 % Specify the to be processed file locations:
 RELAX_cfg.myPath='C:\DATA_TO_BE_PREPROCESSED\';
 
+% Specify whether all data is in a single folder or data are in BIDS format
+% (each EEG file within its own separate folder):
+RELAX_cfg.all_data_in_1_folder_or_BIDS_format='folder'; % set to: 'BIDS' or 'folder'
+
 % Or specify the single file to be processed:
 RELAX_cfg.filename=[]; % (including folder path)
 
 %% List all files in directory
 cd(RELAX_cfg.myPath);
-RELAX_cfg.dirList=dir('*.set');
+if strcmp(RELAX_cfg.all_data_in_1_folder_or_BIDS_format,'BIDS')
+    RELAX_cfg.dirList=dir([RELAX_cfg.myPath '\**\*.set']);
+    already_processed=[];
+    for f=1:size(RELAX_cfg.dirList,1)
+        if contains(RELAX_cfg.dirList(f).name,'RELAX')
+            already_processed(f)=1;
+        end
+    end
+    RELAX_cfg.dirList(already_processed==1,:)=[]; % remove filenames from this list if they have already been cleaned
+    RELAX_cfg.folders={RELAX_cfg.dirList.folder};
+else
+    RELAX_cfg.dirList=dir('*.set');
+end
 RELAX_cfg.files={RELAX_cfg.dirList.name};
 if isempty(RELAX_cfg.files)
     disp('No files found..')
@@ -162,29 +178,7 @@ end
 
 %% Parameters that can be specified:
 
-% The following selections determine how many epochs of each type of
-% artifact to include in the mask. It's not obvious what the best choices are.
-% I have selected as defaults the parameters that work best for our data.
-% If only performing one MWF run, perhaps including all artifacts in the mask
-% is best (as long as that leaves enough clean data for the clean data
-% mask). Somers et al. (2018) suggest that it doesn't hurt to
-% include clean data in the artifact mask, and so it's helpful to have wide
-% boundaries around artifacts. 
-
-% However, I wonder if some files might include the majority of trials in the artifact
-% mask could mean that most of the task related ERPs might be considered
-% artifacts, and cleaned out from the data. Including ERP trials in the clean
-% mask reduces this issue, as the clean mask defines what the good
-% data should look like, and if it has ERPs, then the artifact periods will
-% be cleaned of only the difference between the clean mask and the artifact
-% mask, leaving the ERP in the data. This relies upon a consistent
-% ERP across both the clean and artifact masks however. An alternative fix
-% could be to implement NaNs (which the MWF mask ignores) over ERP periods
-% instead of marking them as artifacts, so the ERP is not included in the
-% artifact mask, but this would mean any artifacts that are present in the
-% ERPs but not outside the ERP periods aren't cleaned.
-
-% Lastly, you may want to delete more unused electrodes than specified by
+% You may want to delete more unused electrodes than specified by
 % this script. If so, modify the section titled: "Delete channels that
 % are not relevant if present" to include the electrodes you would like to
 % delete.
@@ -232,6 +226,30 @@ RELAX_cfg.ExtremeBlinkShiftThreshold=10; % How many MAD from the median across b
 % threshold, which caters for the fact that blinks don't affect
 % the median, so without this, if data is clean and blinks are
 % large, blinks can get excluded as extreme outliers)
+
+% The following selections determine how many epochs of each type of
+% artifact to include in the MWF mask (for if you are applying MWF cleaning).
+% It is not obvious what the best choices are.
+
+% I have selected as defaults the parameters that work best for our data.
+% If only performing one MWF run, perhaps including all artifacts in the mask
+% is best (as long as that leaves enough clean data for the clean data
+% mask). Somers et al. (2018) suggest that it doesn't hurt to
+% include clean data in the artifact mask, and so it's helpful to have wide
+% boundaries around artifacts. 
+
+% However, I wonder if some files might include the majority of trials in the artifact
+% mask, which could mean that most of the task related ERPs might be considered
+% artifacts, and cleaned out from the data. Including ERP trials in the clean
+% mask reduces this issue, as the clean mask defines what the good
+% data should look like, and if it has ERPs, then the artifact periods will
+% be cleaned of only the difference between the clean mask and the artifact
+% mask, leaving the ERP in the data. This relies upon a consistent
+% ERP across both the clean and artifact masks however. An alternative fix
+% could be to implement NaNs (which the MWF mask ignores) over ERP periods
+% instead of marking them as artifacts, so the ERP is not included in the
+% artifact mask, but this would mean any artifacts that are present in the
+% ERPs but not outside the ERP periods aren't cleaned.
             
 % Clean periods that last for a shorter duration than the following value to be marked as artifacts, 
 % and pad short artifact periods out into artifact periods of at least the following length when 
@@ -272,12 +290,20 @@ RELAX_cfg.HighPassFilter=0.5; % Sets the high pass filter. 1Hz is best for ICA d
 %(but at least two studies recently have shown better detection of experimental effects with high-pass set at 0.5Hz even for ERPs, and I find a minority of my files show drift at 0.3Hz).
 RELAX_cfg.LowPassFilter=80; % If you filter out data below 75Hz, you can't use the objective muscle detection method
 
-RELAX_cfg.NotchFilterType='Butterworth'; % set as 'Butterworth' to use Butterworth filter or 'ZaplinePlus' to use ZaplinePlus. ZaplinePlus works best on data sampled at 512Hz or below, consider downsampling if above this.
+RELAX_cfg.NotchFilterType='Butterworth'; % set as 'Butterworth' to use Butterworth filter, 'ZaplinePlus' to use ZaplinePlus, or PMnotch to use ERPLAB's stop-band Parks-McClellan Notch (requires ERPLAB to be installed). 
+% ZaplinePlus works best on data sampled at 512Hz or below, consider downsampling if above this.
 RELAX_cfg.LineNoiseFrequency=50; % Frequencies for bandstop filter in order to address line noise (set to 60 in countries with 60Hz line noise, and 50 in countries with 50Hz line noise).
 
 RELAX_cfg.ElectrodesToDelete={'CB1'; 'CB2'; 'HEOG'; 'IO1'; 'M1'; 'M2'; 'LO1'; 'LO2'; 'E1'; 'E3'; 'ECG'; 'SO1'; 'EOG'; 'SPARE1'; 'SPARE2'; 'SPARE3'; 'BP1'; 'BP2'; 'VEOG'};
 % If your EEG recording includes non-scalp electrodes or electrodes that you want to delete before cleaning, you can set them to be deleted here. 
 % The RELAX cleaning pipeline does not need eye, heart, or mastoid electrodes for effective cleaning.
+
+% If your EEG recording includes non-scalp electrodes or electrodes that you want to delete before cleaning, you can set them to be deleted here. 
+% The RELAX cleaning pipeline does not need eye, heart, or mastoid electrodes for effective cleaning.
+RELAX_cfg.electrodes_2_keep_but_not_clean={'VEOG_R'; 'HEOG_L';'HEOG_R'}; % leave empty if you do not want to preserve any additional electrodes
+% Set the following two parameters to different values if you wish to filter these auxilary electrodes with different settings:
+RELAX_cfg.HighPassFilter_aux_elecs=RELAX_cfg.HighPassFilter; 
+RELAX_cfg.LowPassFilter_aux_elecs=RELAX_cfg.LowPassFilter;
 
 RELAX_cfg.KeepAllInfo=0; % setting this value to 1 keeps all the details from the MWF pre-processing and MWF computation. Helpful for debugging if necessary but makes for large file sizes.
 RELAX_cfg.saveextremesrejected=0; % setting this value to 1 tells the script to save the data after only filtering, extreme channels have been rejected and extreme periods have been noted
@@ -323,8 +349,8 @@ RELAX_cfg.MWF_delay_spacing_for_muscle_artifacts=2; % set how sparsely the delay
 eeglabPath = fileparts(which('eeglab'));
 MWFPluginPath=strcat(eeglabPath,'\plugins\mwf-artifact-removal-master\');
 addpath(genpath(MWFPluginPath));
-if (exist('mwf_process_sparse','file')==0)
-    warndlg('MWF toolbox may not be updated to latest version in EEGLAB plugins folder. Toolbox can be installed from: "https://github.com/exporl/mwf-artifact-removal"','MWF Cleaning Not Available');
+if (exist('mwf_process','file')==0)
+    warndlg('MWF toolbox may not be installed in the EEGLAB plugins folder. Toolbox can be installed from: "https://github.com/exporl/mwf-artifact-removal"','MWF Cleaning Not Available');
 end
 
 toolboxlist=ver;
@@ -369,6 +395,10 @@ if (strcmp(RELAX_cfg.NotchFilterType,'ZaplinePlus')) && (exist('clean_data_with_
     warndlg('ZaplinePlus may not be installed. Plugin can be installed via EEGLAB: "File" > "Manage EEGLAB Extensions"','ZaplinePlus not installed');
 end
 
+if (strcmp(RELAX_cfg.NotchFilterType,'PMnotch')) && (exist('pop_basicfilter','file')==0)
+    warndlg('ERPLAB may not be installed, without which you cannot use PMnotch to address line noise. Plugin can be installed via EEGLAB: "File" > "Manage EEGLAB Extensions"','ERPLAB not installed');
+end
+
 %% Notes on the above parameter settings:
 % OnlyIncludeTaskRelatedEpochs: this means the MWF cleaning templates 
 % won't be distracted by potential large artifacts outside of task related
@@ -386,22 +416,6 @@ end
 % (which will be cleaned but aren't thought of as artifacts for the
 % artifact template). This would prevent the ERP activity of interest from
 % being included in the artifact tempalte (and potentially cleaned)
-
-% Delay periods >5 can lead to generalised eigenvector rank deficiency
-% in some files, and if this occurs cleaning is ineffective. Delay
-% period = 5 was used by Somers et al (2018). The rank deficiency is
-% likely to be because data filtering creates a temporal
-% dependency between consecutive datapoints, reducing their
-% independence when including the temporal aspect in the MWF
-% computation. To address this, the MWF function attempts MWF cleaning
-% at the delay period set above, but if rank deficiency occurs,
-% it reduces the delay period by 1 and try again (for 3
-% iterations).
-
-% Using robust detrending (which does not create any temporal
-% dependence,unlike filtering) may be an alternative which avoids rank
-% deficiency (but our initial test suggested this led to worse cleaning
-% than filtering)
 
 % MuscleSlopeThreshold: (-0.31 = data from paralysed participants showed no
 % independent components with a slope value more positive than this (so

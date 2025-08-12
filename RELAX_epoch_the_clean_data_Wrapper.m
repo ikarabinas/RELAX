@@ -33,11 +33,18 @@ for FileNumber=RELAX_epoching_cfg.FilesToProcess(1,1:size(RELAX_epoching_cfg.Fil
     RELAX_epoching_cfg.filename=RELAX_epoching_cfg.files{FileNumber};
     clearvars -except 'FilesWithoutConvergence' 'RELAX_epoching_cfg' 'FileNumber' 'FileName' 'Participant_IDs' 'Medianvoltageshiftwithinepoch' 'EpochRejections' 'MatCompatible_Participant_IDs' 'WarningAboutFileNumber';
     %% Load data (assuming the data is in EEGLAB .set format):
+
+    if strcmpi(RELAX_epoching_cfg.all_data_in_1_folder_or_BIDS_format,'BIDS')
+        cd(RELAX_epoching_cfg.folders{FileNumber});
+    end
+
     EEG = pop_loadset(RELAX_epoching_cfg.filename);
     FileName = extractBefore(RELAX_epoching_cfg.files{FileNumber},".");
     Participant_IDs{1,FileNumber} = extractBefore(RELAX_epoching_cfg.files{FileNumber},".");
     MatCompatible_Participant_IDs{1,FileNumber}=strcat('ID_',Participant_IDs{1,FileNumber});
     EEG.EpochRejections.ChannelsRemaining=EEG.nbchan;
+
+    RELAX_epoching_cfg.ms_per_sample=(1000/EEG.srate); % v2.0.1 added to enable HEOG and VEOG step function based epoch rejections
 
     %% Interpolate channels that were excluded back into the data:
     if strcmp(RELAX_epoching_cfg.InterpolateRejectedChannels,'yes')
@@ -62,6 +69,16 @@ for FileNumber=RELAX_epoching_cfg.FilesToProcess(1,1:size(RELAX_epoching_cfg.Fil
     if strcmp(RELAX_epoching_cfg.DataType,'Task')
         
         EEG = pop_epoch( EEG, RELAX_epoching_cfg.TriggersToEpoch, RELAX_epoching_cfg.PeriodToEpoch, 'epochinfo', 'yes');
+        if RELAX_epoching_cfg.Reject_HEOG_movements==1 || RELAX_epoching_cfg.Reject_VEOG_movements==1
+            if isfield(EEG,'Non_cleaned_electrodes')
+                % v2.0.1 NWB adjusted to enable epoching of HEOG electrodes in addition to the scalp electrodes:
+                EEG.Non_cleaned_electrodes = pop_epoch(EEG.Non_cleaned_electrodes, RELAX_epoching_cfg.TriggersToEpoch, RELAX_epoching_cfg.PeriodToEpoch, 'epochinfo', 'yes');
+            else
+                error(['You have indicated you would like to exclude epochs containing horizontal eye movements, but the initial cleaning settings do not seem to have preserved these '...
+                    'electrodes in the "EEG.Non_cleaned_electrodes" variable where they are expected. Specifying the HEOG electrodes in the "RELAX_cfg.electrodes_2_keep_but_not_clean" parameter '...
+                    'during cleaning may help solve this issue']);
+            end
+        end
         
         if strcmp(RELAX_epoching_cfg.RemoveOtherTriggers,'yes')
             % Remove triggers that are in the epoch, but aren't the trigger
@@ -69,9 +86,69 @@ for FileNumber=RELAX_epoching_cfg.FilesToProcess(1,1:size(RELAX_epoching_cfg.Fil
             % data separately by condition following this script):
             EEG = pop_selectevent( EEG, 'omitlatency', '-30001<=-1','type', RELAX_epoching_cfg.TriggersToEpoch, 'deleteevents','on');
             EEG = pop_selectevent( EEG, 'omitlatency', '1<=30001','type', RELAX_epoching_cfg.TriggersToEpoch, 'deleteevents','on');
+            if RELAX_epoching_cfg.Reject_HEOG_movements==1
+                EEG.Non_cleaned_electrodes = pop_selectevent( EEG.Non_cleaned_electrodes, 'omitlatency', '-30001<=-1','type', RELAX_epoching_cfg.TriggersToEpoch, 'deleteevents','on');
+                EEG.Non_cleaned_electrodes = pop_selectevent( EEG.Non_cleaned_electrodes, 'omitlatency', '1<=30001','type', RELAX_epoching_cfg.TriggersToEpoch, 'deleteevents','on');
+            end
         end
     end
     EEG = eeg_checkset( EEG );
+
+    %% Check for horizontal eye movements larger than the threshold in microvolts using a step function 
+    % (i.e. the amplitude of the moving average of the previous 100ms compared to the following 100ms)
+    % described in Luck, S. J. (2014). An introduction to the event-related potential technique. MIT press.
+    if RELAX_epoching_cfg.Reject_HEOG_movements==1
+        search_onset=find(EEG.times==RELAX_epoching_cfg.HEOG_rejection_period(1,1)); 
+        search_offset=find(EEG.times==RELAX_epoching_cfg.HEOG_rejection_period(1,2));
+
+        % find each relevant electrode:
+        for e=1:size(EEG.Non_cleaned_electrodes.chanlocs,2)
+            if strcmpi(EEG.Non_cleaned_electrodes.chanlocs(e).labels,RELAX_epoching_cfg.HEOG_electrode_labels{1,1})
+                HEOG_idx1=e;
+            end
+            if strcmpi(EEG.Non_cleaned_electrodes.chanlocs(e).labels,RELAX_epoching_cfg.HEOG_electrode_labels{1,2})
+                HEOG_idx2=e;
+            end
+        end
+        HEOG_diff=EEG.Non_cleaned_electrodes.data(HEOG_idx1,:,:)-EEG.Non_cleaned_electrodes.data(HEOG_idx2,:,:);   
+        
+        for t=search_onset:search_offset
+            HEOG_degree_check(1,t,:)=trimmean(HEOG_diff(1,t-round(100/RELAX_epoching_cfg.ms_per_sample):t,:),95,2)-trimmean(HEOG_diff(1,t:t+round(100/RELAX_epoching_cfg.ms_per_sample),:),95,2); % using trimmean in case the electrodes are noisy
+        end
+        max_HEOG_check_in_epoch=squeeze(max(abs(HEOG_degree_check),[],[1 2]));
+        EEG.HEOG_based_rejections=(max_HEOG_check_in_epoch>RELAX_epoching_cfg.HEOG_rejection_threshold)';
+        EEG.EpochRejections.ProportionEpochsRejectedForHEOG=mean(EEG.HEOG_based_rejections);
+    end
+
+    if RELAX_epoching_cfg.Reject_VEOG_movements==1
+        search_onset=find(EEG.times==RELAX_epoching_cfg.VEOG_rejection_period(1,1)); 
+        search_offset=find(EEG.times==RELAX_epoching_cfg.VEOG_rejection_period(1,2));
+
+        % find each relevant electrode:
+        for e=1:size(EEG.Non_cleaned_electrodes.chanlocs,2)
+            if strcmpi(EEG.Non_cleaned_electrodes.chanlocs(e).labels,RELAX_epoching_cfg.VEOG_electrode_labels{1,1})
+                VEOG_idx1=e;
+            end
+            if size(RELAX_epoching_cfg.VEOG_electrode_labels,2)>1
+                if strcmpi(EEG.Non_cleaned_electrodes.chanlocs(e).labels,RELAX_epoching_cfg.VEOG_electrode_labels{1,2})
+                    VEOG_idx2=e;
+                end
+            end
+        end
+        if RELAX_epoching_cfg.compute_VEOG_difference==1
+            VEOG=EEG.Non_cleaned_electrodes.data(VEOG_idx1,:,:)-EEG.Non_cleaned_electrodes.data(VEOG_idx2,:,:); 
+        else
+            VEOG=EEG.Non_cleaned_electrodes.data(VEOG_idx1,:,:);
+        end
+
+        %% Check for verticle eye movements larger than the threshold in microvolts using step function:
+        for t=search_onset:search_offset
+            VEOG_movement_check(1,t,:)=mean(VEOG(1,t-round(100/RELAX_epoching_cfg.ms_per_sample):t,:),2)-mean(VEOG(1,t:t+round(100/RELAX_epoching_cfg.ms_per_sample),:),2);
+        end
+        max_VEOG_check_in_epoch=squeeze(max(abs(VEOG_movement_check),[],[1 2]));
+        EEG.VEOG_based_rejections=(max_VEOG_check_in_epoch>RELAX_epoching_cfg.VEOG_rejection_threshold)';
+        EEG.EpochRejections.ProportionEpochsRejectedForVEOG=mean(EEG.VEOG_based_rejections);
+    end
 
     %% Baseline Correct Data:
 
@@ -129,7 +206,19 @@ for FileNumber=RELAX_epoching_cfg.FilesToProcess(1,1:size(RELAX_epoching_cfg.Fil
     EEG = pop_jointprob(EEG,1,[ROIidx],RELAX_epoching_cfg.SingleChannelImprobableDataThreshold,RELAX_epoching_cfg.AllChannelImprobableDataThreshold,1,0);
     EEG = pop_rejkurt(EEG,1,(1:EEG.nbchan),RELAX_epoching_cfg.SingleChannelKurtosisThreshold,RELAX_epoching_cfg.AllChannelKurtosisThreshold,1,0);
     EEG = eeg_rejsuperpose(EEG, 1, 0, 1, 1, 1, 1, 1, 1);
+    if RELAX_epoching_cfg.Reject_HEOG_movements==1
+        EEG.reject.rejglobal(EEG.HEOG_based_rejections==1)=1; % add HEOG rejections
+        epochs_to_reject=EEG.reject.rejglobal;
+    end
+    if RELAX_epoching_cfg.Reject_VEOG_movements==1
+        EEG.reject.rejglobal(EEG.VEOG_based_rejections==1)=1; % add HEOG rejections
+        epochs_to_reject=EEG.reject.rejglobal;
+    end
     EEG = pop_rejepoch(EEG, [EEG.reject.rejglobal] ,0);
+
+    if RELAX_epoching_cfg.Reject_HEOG_movements==1 || RELAX_epoching_cfg.Reject_VEOG_movements==1
+        EEG.Non_cleaned_electrodes = pop_rejepoch(EEG.Non_cleaned_electrodes, [epochs_to_reject] ,0);
+    end
         
     %% If you have not filtered out data below 75Hz, you could use an objective muscle slope measure to reject epochs with remaining muscle activity:   
     % Use epoched data and FFT to detect slope of log frequency log
@@ -164,8 +253,15 @@ for FileNumber=RELAX_epoching_cfg.FilesToProcess(1,1:size(RELAX_epoching_cfg.Fil
     
     EEG.RELAX_settings_used_to_epoch_this_file=RELAX_epoching_cfg;
     %% Save data:
-    SaveSetMWF2 =[RELAX_epoching_cfg.OutputPath filesep FileName '_Epoched.set'];    
-    EEG = pop_saveset( EEG, SaveSetMWF2 );  
+    if strcmpi(RELAX_epoching_cfg.all_data_in_1_folder_or_BIDS_format,'BIDS')
+        OutputPath=[RELAX_epoching_cfg.folders{FileNumber} filesep 'Epoched'];
+        mkdir(OutputPath);
+    else
+        OutputPath=RELAX_epoching_cfg.OutputPath;
+    end
+
+    SaveSet_epoched =[OutputPath filesep FileName '_Epoched.set'];    
+    EEG = pop_saveset( EEG, SaveSet_epoched );  
 end
 
 if strcmp(RELAX_epoching_cfg.InterpolateRejectedChannels,'yes')
@@ -201,7 +297,6 @@ if strcmp(RELAX_epoching_cfg.InterpolateRejectedChannels,'yes')
 
     % Plot:
     plot(LowerBound); hold on; plot(UpperBound); 
-    % for c=1:size(EEG.chanlocs,2); electrode{c}=EEG.chanlocs(c).labels;end
     hold on; plot(MedianvoltageshiftwithinepochLogged); xticks([1:1:60]);xticklabels({EEG.chanlocs.labels});legend('LowerBound', 'UpperBound');
 
     OutlierParticipantsToManuallyCheck = table(Participant_IDs', CumulativeSeverityOfAmplitudesBelowThreshold,CumulativeSeverityOfAmplitudesAboveThreshold);

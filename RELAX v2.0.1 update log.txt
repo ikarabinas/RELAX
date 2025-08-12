@@ -1,0 +1,27 @@
+Moderate changes:
+
+1) RELAX has now been adjusted to be BIDS compatible - settings are available from the GUI or within the code to select to process data either from BIDS format folders (one folder for each participant) or in the traditional method (all files in a single over-arching folder. Data are output in the selected method as well.
+
+2) Added an option to use the PMnotch filter method from ERPLAB to address 50Hz or 60Hz line noise (requires ERPLAB to be installed).
+
+3) added options to preserve specified non-cleaned electrodes in the file (e.g. EOG, cardiac), and to remove the same periods from those time-series as the periods that are removed from the EEG data. This enables the time-series from those electrodes to be timelocked to the EEG electrode data after cleaning. An additional adjustment has also been made to the epoching script to enable detection are rejection of epochs containing horizontal or vertical eye movements if the HEOG electrodes are preserved in the file from before the onset of cleaning. 
+
+
+
+Minor adjustments:
+
+1) Fixed typo when using "size" to determine which dimension of 'Component' variable should be used to determine the number of muscle components to be filtered to remove high frequency activity. This caused an unpredictable error for a minority of EEG files previously.
+
+2) if low pass filtering is applied to the data after MWF cleaning, it is now applied prior to the extremely bad period rejection step to avoid adverse effects from boundary elements.
+
+3) Added if statement into RELAX_Wrapper to prevent RELAX from erroring if RELAX_cfg.caploc variable was not provided (so files can still be processed if electrode locations are already in the file).
+
+4) adjusted RELAX_blinks_IQR_method to automatically detect if electrode labels aren't in the first column of EEG.chanlocs, to find the column that they are listed in, and to use that instead (increasing compatibility with a wider range of EEG files and channel location files).
+
+5) fixed a parameter setting issue in RELAX_ICA_subtract where the wrong string was being used to select extended_infomax_ICA
+
+6) fixed bug that was causing an error if MWF was only applied to clean blinks or horizontal eye movements, without having cleaned muscle activity first.
+
+7) added error message if users are trying to use the MWF cleaning approach but do not have the most up to date version of the software installed
+
+8) adjusted the MWF cleaning of drift remaining in the data after filtering to low-pass filter the continuous data rather than the epoched data to determine periods showing drift (better to avoid edge effects).

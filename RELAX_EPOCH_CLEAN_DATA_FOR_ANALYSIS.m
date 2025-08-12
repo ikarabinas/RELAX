@@ -47,7 +47,21 @@ RELAX_epoching_cfg.reject_amp=60; % Absolute voltage amplitude threshold - if an
 % the analysis are still affected by muscle activity:
 RELAX_epoching_cfg.MuscleSlopeThreshold=-0.31; % log frequency/ log power slope threshold for muscle artifact. Less stringent = -0.31, Middle Stringency = -0.59 or more stringent = -0.72, more negative thresholds remove more muscle. 
 RELAX_epoching_cfg.MaxProportionOfMuscleEpochsToClean=0.50; % Maximum proportion of muscle epochs to remove (if more epochs than this are affected, only the worst effected up to this proportion will be removed)
-RELAX_epoching_cfg.RemoveEpochsShowingMuscleActivity='yes'; % 'yes' or 'no'
+RELAX_epoching_cfg.RemoveEpochsShowingMuscleActivity='no'; % 'yes' or 'no'
+
+% set to reject epochs if HEOG movements larger than a specified threshold were detected using the step function described by Luck (2014):
+% Luck, S. J. (2014). An introduction to the event-related potential technique. MIT press.
+% (this setting is only helpful if participants were required to focus on a specific point, and to not move their eyes during the task)
+RELAX_epoching_cfg.Reject_HEOG_movements=0; % set to 1 to reject epochs based on horizontal eye movements during the epoch
+RELAX_epoching_cfg.HEOG_electrode_labels={'HEOG_R','HEOG_L'}; % set the labels used for the HEOG electrodes
+RELAX_epoching_cfg.HEOG_rejection_period=[-200 300]; % in ms, the period within which to search for HEOG movements and reject epochs if HEOG movements are found, relative to stimuli onset
+RELAX_epoching_cfg.HEOG_rejection_threshold=32; % HEOG rejection threshold (16 microvolts = 1 degree of eye movement)
+
+RELAX_epoching_cfg.Reject_VEOG_movements=0; % reject based on probable blinks?
+RELAX_epoching_cfg.VEOG_electrode_labels={'VEOG_Lower','VEOG_Upper'}; % set the labels used for the VEOG electrodes
+RELAX_epoching_cfg.VEOG_rejection_period=[-200 200]; % in ms, the period within which to search for VEOG movements and reject epochs if HEOG movements are found, relative to stimuli onset
+RELAX_epoching_cfg.VEOG_rejection_threshold=60; % VEOG rejection threshold
+RELAX_epoching_cfg.compute_VEOG_difference=0; % compute difference between a lower and upper VEOG electrode? (if set to 1, make sure both are listed in the 1st and 2nd position for VEOG_electrode_labels)
 
 RELAX_epoching_cfg.DataType='Task'; % 'Task' for cognitive tasks, 'Resting' for data without stimuli presented
 RELAX_epoching_cfg.restingdatatriggerinterval=3.5; % (seconds) sets how often an 'X' trigger is inserted into resting data for epoching. 3.5 with [-2.5 2.5] PeriodToEpoch provides 5s epochs with 1.5s overlaps
@@ -62,7 +76,14 @@ RELAX_epoching_cfg.NumberOfFactors=2;
 RELAX_epoching_cfg.BL_correction_Factor_1_Level_1={'HappyGo' 'SadGo' }; % triggers to include in factor 1's level 1 for regression BL correction (all other triggers are included in factor 1's level 2)
 RELAX_epoching_cfg.BL_correction_Factor_2_Level_1={'HappyGo' 'HappyNogo' }; % triggers to include in factor 2's level 1 for regression BL correction (all other triggers are included in factor 2's level 2)
 
-% Specify the to be processed file locations:
+% Specify whether all data is in a single folder or data are in BIDS format
+% (each EEG file within its own separate folder):
+RELAX_epoching_cfg.all_data_in_1_folder_or_BIDS_format='folder'; % set to: 'BIDS' or 'folder'
+
+% Specify the 'to be epoched' file locations: 
+% If including all data in a single folder, specify the folder containing
+% the cleaned data, otherwise if using BIDS format (one sub-folder per
+% participant), then specify the folder containing all the sub-folders.
 RELAX_epoching_cfg.CleanedPath=['C:\DATA_TO_BE_PREPROCESSED' filesep 'RELAXProcessed' filesep 'Cleaned_Data'];
 
 % Load pre-processing statistics file for these participants if it already
@@ -72,8 +93,24 @@ mkdir(RELAX_epoching_cfg.OutputPath);
 
 %% List all files in directory
 cd(RELAX_epoching_cfg.CleanedPath);
-RELAX_epoching_cfg.dirList=dir('*.set');
-RELAX_epoching_cfg.files={RELAX_epoching_cfg.dirList.name};
+if strcmpi(RELAX_epoching_cfg.all_data_in_1_folder_or_BIDS_format,'folder')
+    RELAX_epoching_cfg.dirList=dir('*.set');
+    RELAX_epoching_cfg.files={RELAX_epoching_cfg.dirList.name};
+elseif strcmpi(RELAX_epoching_cfg.all_data_in_1_folder_or_BIDS_format,'BIDS')
+    RELAX_epoching_cfg.dirList=dir([RELAX_epoching_cfg.CleanedPath '\**\*_RELAX.set']); 
+    % If you have cleaned your data with RELAX, then the suffix "_RELAX" will ensure only the clean data is found here.
+    % If you used a different method to clean your data, include the suffix that indicates the cleaned data 
+    % (otherwise the script will epoch the raw data as well as the epoched data)
+    already_processed=[];
+    for f=1:size(RELAX_epoching_cfg.dirList,1)
+        if contains(RELAX_epoching_cfg.dirList(f).name,'Epoched')
+            already_processed(f)=1;
+        end
+    end
+    RELAX_epoching_cfg.dirList(already_processed==1,:)=[]; % remove filenames from this list if they have already been epoched
+    RELAX_epoching_cfg.files={RELAX_epoching_cfg.dirList.name};
+    RELAX_epoching_cfg.folders={RELAX_epoching_cfg.dirList.folder};
+end
 if isempty(RELAX_epoching_cfg.files)
     disp('No files found..')
 end

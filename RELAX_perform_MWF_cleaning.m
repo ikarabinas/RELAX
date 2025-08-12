@@ -60,8 +60,16 @@ function [EEG] = RELAX_perform_MWF_cleaning (EEG, RELAX_cfg)
     EEG.RELAXProcessing.DelayPeriod=NaN;
     
     %% RUN MWF TO CLEAN DATA BASED ON MASKS CREATED IN RELAX FUNCTIONS:
-    if EEG.RELAXProcessing.ProportionMarkedInMWFArtifactMaskTotal>0.05    
-        params = mwf_params('delay', (RELAX_cfg.MWFDelayPeriod),'delay_spacing', RELAX_cfg.MWF_delay_spacing);
+    if EEG.RELAXProcessing.ProportionMarkedInMWFArtifactMaskTotal>0.05
+        % v2.0.1 NWB added the following try-catch to notify users if they
+        % are using an old version of the MWF toolbox (8/8/2025):
+        try
+            params = mwf_params('delay', (RELAX_cfg.MWFDelayPeriod),'delay_spacing', RELAX_cfg.MWF_delay_spacing);
+        catch
+            error(['You may be trying to use MWF cleaning with a sparse delay period,' ...
+                ' but without the updated version of the MWF toolbox that allows this setting. ' ...
+                'You can obtain the updated version from: https://github.com/exporl/mwf-artifact-removal']);
+        end
         [cleanEEG, d, W, SER, ARR] = mwf_process (EEG.data, EEG.RELAXProcessing.Details.NoiseMaskFullLength, params);
         EEG.RELAXProcessing.DelayPeriod=RELAX_cfg.MWFDelayPeriod;
         % If Generalized eigenvectors are not scaled as assumed, try again
