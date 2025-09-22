@@ -366,6 +366,8 @@ function [EEG] = RELAX_targeted_wICA(EEG,RELAX_cfg)
     EEG.icaact      = EEG_with_ICA.icaact;
     EEG.etc.ic_classification = EEG_with_ICA.etc.ic_classification;
     
+    
+    
     if strcmp(RELAX_cfg.Report_all_wICA_info,'yes')
     
         EEG.RELAXProcessing_wICA.ProportionICs_was_Brain=sum(I==1)/size(EEG_with_ICA.etc.ic_classification.ICLabel.classifications,1);

@@ -596,6 +596,7 @@ for FileNumber=RELAX_cfg.FilesToProcess(1,1:size(RELAX_cfg.FilesToProcess,2))
         RELAXProcessing_wICA_AllParticipants(FileNumber,:) = struct2table(RELAXProcessing_wICA,'AsArray',true);
     end
     
+    
     %% Perform wICA on ICLabel identified artifacts that remain:
     if RELAX_cfg.Perform_wICA_on_ICLabel==1
         % The following performs wICA, implemented on only the components
@@ -623,6 +624,11 @@ for FileNumber=RELAX_cfg.FilesToProcess(1,1:size(RELAX_cfg.FilesToProcess,2))
     
     EEG.RELAX.Data_has_been_cleaned=1;
     
+    %% Save ICA topoplots
+    if exist('save_topo.m', 'file')
+        save_topo(EEG, RELAX_cfg);  % Pass EEG structure and config
+    end
+
     %% COMPUTE CLEANED METRICS:
     if RELAX_cfg.computecleanedmetrics==1    
         [continuousEEG, epochedEEG] = RELAX_epoching(EEG, RELAX_cfg);
