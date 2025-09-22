@@ -112,7 +112,7 @@ clear all; close all; clc;
 % EEGLAB:
 % https://sccn.ucsd.edu/eeglab/index.php
 % Delorme, A., & Makeig, S. (2004). EEGLAB: an open source toolbox for analysis of single-trial EEG dynamics including independent component analysis. Journal of neuroscience methods, 134(1), 9-21.
-addpath('C:\Analysis_Tools\eeglab2024.2');
+addpath('/home/imk2003/Documents/MATLAB/eeglab/');
 eeglab;
 
 % PREP pipeline to reject bad electrodes (install plugin to EEGLAB, or via the github into the EEGLAB plugin folder): 
@@ -123,31 +123,31 @@ eeglab;
 % Specify the MWF path:
 % https://github.com/exporl/mwf-artifact-removal
 % Somers, B., Francart, T., & Bertrand, A. (2018). A generic EEG artifact removal algorithm based on the multi-channel Wiener filter. Journal of neural engineering, 15(3), 036007.
-addpath(genpath('C:\Analysis_Tools\eeglab2024.2\plugins\mwf-artifact-removal-master'));
+addpath(genpath('/home/imk2003/Documents/MATLAB/eeglab/plugins/mwf-artifact-removal'));
 
 % Fieldtrip:
 % http://www.fieldtriptoolbox.org/
 % Robert Oostenveld, Pascal Fries, Eric Maris, and Jan-Mathijs Schoffelen. FieldTrip: Open Source Software for Advanced Analysis of MEG, EEG, and Invasive Electrophysiological Data. Computational Intelligence and Neuroscience, vol. 2011, Article ID 156869, 9 pages, 2011. doi:10.1155/2011/156869.
-addpath('C:\Analysis_Tools\eeglab2024.2\plugins\Fieldtrip-lite20210601');
+addpath('/home/imk2003/Documents/MATLAB/eeglab/plugins/Fieldtrip-lite250523/');
 
 % PICARD:
 % Can be installed from the EEGLAB plugin manager.
 
 % fastica:
 % http://research.ics.aalto.fi/ica/fastica/code/dlcode.shtml 
-addpath('C:\Analysis_Tools\eeglab2024.2\plugins\FastICA_25\');
+addpath('/home/imk2003/Documents/MATLAB/eeglab/plugins/FastICA_25/');
 
 % ICLabel in your eeglab folder as a plugin or via the github:
 % https://github.com/sccn/ICLabel
 
 % Specify  RELAX folder location (this toolbox):
-addpath('C:\Analysis_Tools\eeglab2024.2\plugins\RELAX-2.0.1\');
+addpath('/home/imk2003/Documents/MATLAB/eeglab/plugins/RELAX/');
 
 % Specify your electrode locations with the correct cap file:
-RELAX_cfg.caploc='C:\Analysis_Tools\CapLocationFiles\standard-10-5-cap385.elp'; % path containing electrode positions. Set to =[] if electrode locations are already in your EEG file.
+RELAX_cfg.caploc=[]; % path containing electrode positions. Set to =[] if electrode locations are already in your EEG file.
 
 % Specify the to be processed file locations:
-RELAX_cfg.myPath='C:\DATA_TO_BE_PREPROCESSED\';
+RELAX_cfg.myPath='/athena/grosenicklab/scratch/imk2003/acc_tmseeg/eeg_data/reststate_set_files/m544_dlpfc_day1';
 
 % Specify whether all data is in a single folder or data are in BIDS format
 % (each EEG file within its own separate folder):
@@ -185,13 +185,22 @@ end
 
 RELAX_cfg.Perform_targeted_wICA=1; % This is the recommended artifact reduction method.
 
+% Set preference for PCA whitening
+RELAX_cfg.PCA_whitening = 0;
+if RELAX_cfg.PCA_whitening
+    % Set number of components for PCA decomposition
+    RELAX_cfg.n_comp = 32;  % user modified, added by Bella to bypass kN^2 rule concerns with 256-ch full ICA decomp
+else
+    RELAX_cfg.n_comp = EEG.nbchan;
+end
+
 RELAX_cfg.Do_MWF_Once=0; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no).
 RELAX_cfg.Do_MWF_Twice=0; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no).
 RELAX_cfg.Do_MWF_Thrice=0; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no). I think cleaning drift in this is a good idea.
 RELAX_cfg.Perform_wICA_on_ICLabel=0; % 1 = Perform wICA on artifact components marked by ICLabel (1 for yes, 0 for no).
 RELAX_cfg.Perform_ICA_subtract=0; % 1 = Perform ICA subtract on artifact components marked by ICLabel (1 for yes, 0 for no) (non-optimal, intended to be optionally used separately to wICA rather than additionally)
 RELAX_cfg.ICA_method='picard';
-RELAX_cfg.Report_all_ICA_info='no'; % set to yes to provide detailed report of ICLabel artifact information. Runs ~20s slower per file.
+RELAX_cfg.Report_all_ICA_info='yes'; % set to yes to provide detailed report of ICLabel artifact information. Runs ~20s slower per file.
 RELAX_cfg.Clean_other_comps='no'; % set to yes to clean independent components other than blinks and muscle activity
 
 RELAX_cfg.ICLabel_thresholds=[0 0 0 0 0 0 0]; 
@@ -258,10 +267,13 @@ RELAX_cfg.ExtremeBlinkShiftThreshold=10; % How many MAD from the median across b
 RELAX_cfg.MinimumArtifactDuration=1200; % in ms. It's better to make this value longer than 1000ms, as doing so will catch diminishing artifacts that aren't detected in a neighbouring 1000ms period, which might still be bad
 RELAX_cfg.MinimumBlinkArtifactDuration=800; % blink marking is based on the maximum point of the blink rather than the 1000ms divisions for muscle artifacts, so this can be shorter than the value above (blinks do not typically last >500ms)
 
-RELAX_cfg.BlinkElectrodes={'FP1';'FPZ';'FP2';'AF3';'AF4';'F3';'F1';'FZ';'F2';'F4'}; % sets the electrodes to average for blink detection using the IQR method. These should be frontal electrodes maximally affected by blinks. The order is the order of preference for icablinkmetrics.
+RELAX_cfg.BlinkElectrodes={'E1';'E2';'E3';'E4';'E5';'E6';'E7';'E10';'E12';'E11';'E13';'E14';'E15';'E16';'E18';'E19';
+    'E20';'E21';'E22';'E23';'E25';'E26';'E27';'E28';'E31';'E32';'E33';'E34';'E35';'E36';'E37';'E38';'E39';'E40';
+    'E46';'E47';'E48';'E29';'E30';'E54';'E55';'E56';'E61';'E62';'E210';'E211';'E212';'E214';'E213';'E220';'E222';
+    'E221';'E223';'E224';'E68';'E49';'E41';'E215'}; % sets the electrodes to average for blink detection using the IQR method. These should be frontal electrodes maximally affected by blinks. The order is the order of preference for icablinkmetrics.
 % A single HOEG electrode for each side is selected by the script, prioritized in the following order (if the electrode in position 1 isn't present, the script will check for electrode in position 2, and so on...).
-RELAX_cfg.HEOGLeftpattern = ["AF7", "F7", "FT7", "F5", "T7", "FC5", "C5", "TP7", "AF3"]; % sets left side electrodes to use for horizontal eye movement detection. These should be lateral electrodes maximally effected by blinks.
-RELAX_cfg.HEOGRightpattern = ["AF8", "F8","FT8","F6","T8", "FC6", "C6", "TP8", "AF4"]; % sets right side electrodes to use for horizontal eye movement detection. These should be lateral electrodes maximally effected by blinks.
+RELAX_cfg.HEOGLeftpattern = ["E46", "E54", "E252", "E47", "E248", "E241", "E244"]; % sets left side electrodes to use for horizontal eye movement detection. These should be lateral electrodes maximally effected by blinks.
+RELAX_cfg.HEOGRightpattern = ["E10", "E1", "E226", "E2", "E230", "E238", "E234"]; % sets right side electrodes to use for horizontal eye movement detection. These should be lateral electrodes maximally effected by blinks.
 RELAX_cfg.BlinkMaskFocus=150; % this value decides how much data before and after the right and left base of the eye blink to mark as part of the blink artifact window. 
 % I found 100ms on either side of the blink bases works best with a delay of 7 on the MWF. However, it also seemed to create too short artifact masks at times, which may lead to insufficient rank for MWF, so I left the default as 150ms.
 RELAX_cfg.HorizontalEyeMovementType=2; % 1 to use the IQR method, 2 to use the MAD method for identifying threshold. IQR method less effective for smaller sample sizes (shorter files).
@@ -286,21 +298,21 @@ RELAX_cfg.causal_or_acausal_filter='acausal'; % set as 'acausal' or 'causal'.
 % Acausal filters are typical, and avoid filter distortions affecting data only forwards in time, whereas causal filters are less typical, cause
 % filter distortions only forwards in time, but can protect against spurious conclusions that neural activity precedes stimuli due to filter
 % distortions being projected back from post-stimulus activity to pre-stimulus periods. See: https://doi.org/10.3389/fpsyg.2012.00233
-RELAX_cfg.HighPassFilter=0.5; % Sets the high pass filter. 1Hz is best for ICA decomposition if you're examining just oscillatory data, 0.25Hz has been suggested to be the highest before ERPs are adversely affected by filtering 
+RELAX_cfg.HighPassFilter=1; % Sets the high pass filter. 1Hz is best for ICA decomposition if you're examining just oscillatory data, 0.25Hz has been suggested to be the highest before ERPs are adversely affected by filtering 
 %(but at least two studies recently have shown better detection of experimental effects with high-pass set at 0.5Hz even for ERPs, and I find a minority of my files show drift at 0.3Hz).
-RELAX_cfg.LowPassFilter=80; % If you filter out data below 75Hz, you can't use the objective muscle detection method
+RELAX_cfg.LowPassFilter=200; % If you filter out data below 75Hz, you can't use the objective muscle detection method
 
 RELAX_cfg.NotchFilterType='Butterworth'; % set as 'Butterworth' to use Butterworth filter, 'ZaplinePlus' to use ZaplinePlus, or PMnotch to use ERPLAB's stop-band Parks-McClellan Notch (requires ERPLAB to be installed). 
 % ZaplinePlus works best on data sampled at 512Hz or below, consider downsampling if above this.
-RELAX_cfg.LineNoiseFrequency=50; % Frequencies for bandstop filter in order to address line noise (set to 60 in countries with 60Hz line noise, and 50 in countries with 50Hz line noise).
+RELAX_cfg.LineNoiseFrequency=60; % Frequencies for bandstop filter in order to address line noise (set to 60 in countries with 60Hz line noise, and 50 in countries with 50Hz line noise).
 
-RELAX_cfg.ElectrodesToDelete={'CB1'; 'CB2'; 'HEOG'; 'IO1'; 'M1'; 'M2'; 'LO1'; 'LO2'; 'E1'; 'E3'; 'ECG'; 'SO1'; 'EOG'; 'SPARE1'; 'SPARE2'; 'SPARE3'; 'BP1'; 'BP2'; 'VEOG'};
+RELAX_cfg.ElectrodesToDelete={''};
 % If your EEG recording includes non-scalp electrodes or electrodes that you want to delete before cleaning, you can set them to be deleted here. 
 % The RELAX cleaning pipeline does not need eye, heart, or mastoid electrodes for effective cleaning.
 
 % If your EEG recording includes non-scalp electrodes or electrodes that you want to delete before cleaning, you can set them to be deleted here. 
 % The RELAX cleaning pipeline does not need eye, heart, or mastoid electrodes for effective cleaning.
-RELAX_cfg.electrodes_2_keep_but_not_clean={'VEOG_R'; 'HEOG_L';'HEOG_R'}; % leave empty if you do not want to preserve any additional electrodes
+RELAX_cfg.electrodes_2_keep_but_not_clean={''}; % leave empty if you do not want to preserve any additional electrodes
 % Set the following two parameters to different values if you wish to filter these auxilary electrodes with different settings:
 RELAX_cfg.HighPassFilter_aux_elecs=RELAX_cfg.HighPassFilter; 
 RELAX_cfg.LowPassFilter_aux_elecs=RELAX_cfg.LowPassFilter;
@@ -320,8 +332,8 @@ RELAX_cfg.ProportionOfMuscleContaminatedEpochsAboveWhichToRejectChannel=0.50; % 
 % Set muscle proportion before deletion to 1 to not delete electrodes based on muscle activity
 RELAX_cfg.ProportionOfExtremeNoiseAboveWhichToRejectChannel=0.25; % If the proportion of all epochs from a single electrode that are marked as containing extreme artifacts is higher than this, the electrode is deleted
 
-RELAX_cfg.MaxProportionOfElectrodesThatCanBeDeleted=0.10; % Sets the maximum proportion of electrodes that are allowed to be deleted after PREP's bad electrode deletion step
-RELAX_cfg.InterpolateRejectedElectrodesAfterCleaning='no'; % Interpolate rejected electrodes back into the data after each file has been cleaned and before saving the cleaned data?
+RELAX_cfg.MaxProportionOfElectrodesThatCanBeDeleted=0.20; % Sets the maximum proportion of electrodes that are allowed to be deleted after PREP's bad electrode deletion step
+RELAX_cfg.InterpolateRejectedElectrodesAfterCleaning='yes'; % Interpolate rejected electrodes back into the data after each file has been cleaned and before saving the cleaned data?
 
 RELAX_cfg.MWFDelayPeriod_for_eye_movements=10; % The MWF includes both spatial and temporal information when filtering out artifacts. Longer delays apparently improve performance. 
 RELAX_cfg.MWFDelayPeriod_for_muscle_artifacts=10; % The MWF includes both spatial and temporal information when filtering out artifacts. Longer delays apparently improve performance.

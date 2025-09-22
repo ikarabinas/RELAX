@@ -114,7 +114,7 @@ if ~isfield(RELAX_cfg,'ICA_method')
     RELAX_cfg.ICA_method='picard';
 end
 if ~isfield(RELAX_cfg,'Report_all_ICA_info')
-    RELAX_cfg.Report_all_ICA_info='no'; % set to yes to provide detailed report of ICLabel artifact information. Runs ~20s slower per file.
+    RELAX_cfg.Report_all_ICA_info='yes'; % set to yes to provide detailed report of ICLabel artifact information. Runs ~20s slower per file.
 end
 if ~isfield(RELAX_cfg,'Clean_other_comps')
     RELAX_cfg.Clean_other_comps='no'; % set to yes to clean independent components other than blinks and muscle activity

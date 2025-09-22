@@ -358,6 +358,14 @@ function [EEG] = RELAX_targeted_wICA(EEG,RELAX_cfg)
     
     EEG.RELAXProcessing_wICA.Proportion_artifactICs_reduced_by_wICA=mean(ICsMostLikelyNotBrain);
     
+    % Save ICA fields into the main EEG structure for later access
+    EEG.icaweights  = EEG_with_ICA.icaweights;
+    EEG.icasphere   = EEG_with_ICA.icasphere;
+    EEG.icawinv     = EEG_with_ICA.icawinv;
+    EEG.icachansind = EEG_with_ICA.icachansind;
+    EEG.icaact      = EEG_with_ICA.icaact;
+    EEG.etc.ic_classification = EEG_with_ICA.etc.ic_classification;
+    
     if strcmp(RELAX_cfg.Report_all_wICA_info,'yes')
     
         EEG.RELAXProcessing_wICA.ProportionICs_was_Brain=sum(I==1)/size(EEG_with_ICA.etc.ic_classification.ICLabel.classifications,1);
