@@ -71,6 +71,7 @@ function [EEG] = RELAX_targeted_wICA(EEG,RELAX_cfg)
         % the case of non-convergence, then switches to fastica_defl to
         % ensure ICA convergence (as cleaning as adversely affected by
         % non-convergence issues).
+        disp('Running Fast ICA.')
          [EEG_with_ICA, ~, NonConvergence] = pop_runica_nwb( EEG, 'icatype', 'fastica','numOfIC', EEG.nbchan, 'approach', 'symm', 'g', 'tanh', 'stabilization', 'on');
          fastica_symm_Didnt_Converge(1,1)=NonConvergence;
          if NonConvergence==1
@@ -130,8 +131,9 @@ function [EEG] = RELAX_targeted_wICA(EEG,RELAX_cfg)
             EEG_with_ICA.icaact = reshape( EEG_with_ICA.icaact, size(EEG_with_ICA.icaact,1), EEG_with_ICA.pnts, EEG_with_ICA.trials);
         end
         Component=reshape(EEG_with_ICA.icaact, size(EEG_with_ICA.icaact,1), []);
-    elseif strcmp(RELAX_cfg.ICA_method,'picard') % Run PICARD-O using default settings
-        [EEG_with_ICA, ~] = pop_runica_nwb(EEG, 'picard', 'mode','ortho','tol',1e-6,'maxiter',500); % run picard
+    elseif strcmp(RELAX_cfg.ICA_method,'picard') % Run PICARD-O
+        disp('Running Picard ICA.')
+        [EEG_with_ICA, ~] = pop_runica_nwb(EEG, 'picard', 'mode','ortho','tol',1e-6,'maxiter',2000); % set tol and maxiter to improve reproducibility
         W = EEG_with_ICA.icaweights*EEG_with_ICA.icasphere;
         A = inv(W);
         EEG_with_ICA = eeg_checkset(EEG_with_ICA, 'ica'); 

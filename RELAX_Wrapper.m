@@ -24,9 +24,9 @@ function [RELAX_cfg, FileNumber, CleanedMetrics, RawMetrics, RELAXProcessingMWFS
 
 tic;
 
-savedir='/athena/grosenicklab/scratch/imk2003/acc_tmseeg/relax_test/';
-%RELAX_cfg.OutputPath=[RELAX_cfg.myPath filesep 'RELAXProcessed' filesep];   % use fileseparators for increased compatability 
-RELAX_cfg.OutputPath=[savedir filesep 'RELAXProcessed' filesep];   % set outputh directory path
+%savedir='/athena/grosenicklab/scratch/imk2003/acc_tmseeg/relax_test';
+RELAX_cfg.OutputPath=[RELAX_cfg.myPath filesep 'RELAXProcessed' filesep];   % use fileseparators for increased compatability 
+%RELAX_cfg.OutputPath=[savedir filesep 'RELAXProcessed' filesep];   % set outputh directory path
 if ~exist(RELAX_cfg.OutputPath, 'dir'); mkdir(RELAX_cfg.OutputPath); end % make dir if not present
 fprintf('Output path set to: %s\n', RELAX_cfg.OutputPath);
 

@@ -147,7 +147,7 @@ addpath('/home/imk2003/Documents/MATLAB/eeglab/plugins/RELAX/');
 RELAX_cfg.caploc=[]; % path containing electrode positions. Set to =[] if electrode locations are already in your EEG file.
 
 % Specify the to be processed file locations:
-RELAX_cfg.myPath='/athena/grosenicklab/scratch/imk2003/acc_tmseeg/eeg_data/reststate_set_files/m544_dlpfc_day1';
+RELAX_cfg.myPath='/athena/grosenicklab/scratch/imk2003/acc_tmseeg/eeg_data/reststate_set_files/m544_dlpfc';
 
 % Specify whether all data is in a single folder or data are in BIDS format
 % (each EEG file within its own separate folder):
@@ -185,18 +185,18 @@ end
 
 RELAX_cfg.Perform_targeted_wICA=1; % This is the recommended artifact reduction method.
 
-% Set preference for PCA whitening
+% Set preference for PCA whitening (under construction - IMK)
 RELAX_cfg.PCA_whitening = 0;
 if RELAX_cfg.PCA_whitening
     % Set number of components for PCA decomposition
-    RELAX_cfg.n_comp = 32;  % user modified, added by Bella to bypass kN^2 rule concerns with 256-ch full ICA decomp
+    RELAX_cfg.n_comp = 32;
 else
     RELAX_cfg.n_comp = EEG.nbchan;
 end
 
-RELAX_cfg.Do_MWF_Once=0; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no).
-RELAX_cfg.Do_MWF_Twice=0; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no).
-RELAX_cfg.Do_MWF_Thrice=0; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no). I think cleaning drift in this is a good idea.
+RELAX_cfg.Do_MWF_Once=1; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no).
+RELAX_cfg.Do_MWF_Twice=1; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no).
+RELAX_cfg.Do_MWF_Thrice=1; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no). I think cleaning drift in this is a good idea.
 RELAX_cfg.Perform_wICA_on_ICLabel=0; % 1 = Perform wICA on artifact components marked by ICLabel (1 for yes, 0 for no).
 RELAX_cfg.Perform_ICA_subtract=0; % 1 = Perform ICA subtract on artifact components marked by ICLabel (1 for yes, 0 for no) (non-optimal, intended to be optionally used separately to wICA rather than additionally)
 RELAX_cfg.ICA_method='picard';
@@ -267,10 +267,7 @@ RELAX_cfg.ExtremeBlinkShiftThreshold=10; % How many MAD from the median across b
 RELAX_cfg.MinimumArtifactDuration=1200; % in ms. It's better to make this value longer than 1000ms, as doing so will catch diminishing artifacts that aren't detected in a neighbouring 1000ms period, which might still be bad
 RELAX_cfg.MinimumBlinkArtifactDuration=800; % blink marking is based on the maximum point of the blink rather than the 1000ms divisions for muscle artifacts, so this can be shorter than the value above (blinks do not typically last >500ms)
 
-RELAX_cfg.BlinkElectrodes={'E1';'E2';'E3';'E4';'E5';'E6';'E7';'E10';'E12';'E11';'E13';'E14';'E15';'E16';'E18';'E19';
-    'E20';'E21';'E22';'E23';'E25';'E26';'E27';'E28';'E31';'E32';'E33';'E34';'E35';'E36';'E37';'E38';'E39';'E40';
-    'E46';'E47';'E48';'E29';'E30';'E54';'E55';'E56';'E61';'E62';'E210';'E211';'E212';'E214';'E213';'E220';'E222';
-    'E221';'E223';'E224';'E68';'E49';'E41';'E215'}; % sets the electrodes to average for blink detection using the IQR method. These should be frontal electrodes maximally affected by blinks. The order is the order of preference for icablinkmetrics.
+RELAX_cfg.BlinkElectrodes={'E18'; 'E37'; 'E19'; 'E33'; 'E32'; 'E25'; 'E31'; 'E26'}; % sets the electrodes to average for blink detection using the IQR method. These should be frontal electrodes maximally affected by blinks. The order is the order of preference for icablinkmetrics.
 % A single HOEG electrode for each side is selected by the script, prioritized in the following order (if the electrode in position 1 isn't present, the script will check for electrode in position 2, and so on...).
 RELAX_cfg.HEOGLeftpattern = ["E46", "E54", "E252", "E47", "E248", "E241", "E244"]; % sets left side electrodes to use for horizontal eye movement detection. These should be lateral electrodes maximally effected by blinks.
 RELAX_cfg.HEOGRightpattern = ["E10", "E1", "E226", "E2", "E230", "E238", "E234"]; % sets right side electrodes to use for horizontal eye movement detection. These should be lateral electrodes maximally effected by blinks.
@@ -290,8 +287,8 @@ elseif (RELAX_cfg.Do_MWF_Once+RELAX_cfg.Do_MWF_Twice+RELAX_cfg.Do_MWF_Thrice)==0
 end
 % avoiding low pass filtering prior to MWF reduces chances of rank deficiencies increasing potential values for MWF delay period 
 % (downsampling the data after filtering also reduces the chances of rank deficiencies) 
-RELAX_cfg.DownSample='no'; % set to 'yes' if you wish to downsample the data
-RELAX_cfg.DownSample_to_X_Hz=250; % frequency to downsample to (in samples per second / Hz)
+RELAX_cfg.DownSample='yes'; % set to 'yes' if you wish to downsample the data
+RELAX_cfg.DownSample_to_X_Hz=500; % frequency to downsample to (in samples per second / Hz)
 
 RELAX_cfg.FilterType='Butterworth'; % set as 'pop_eegfiltnew' to use EEGLAB's filter or 'Butterworth' to use Butterworth filter
 RELAX_cfg.causal_or_acausal_filter='acausal'; % set as 'acausal' or 'causal'. 
