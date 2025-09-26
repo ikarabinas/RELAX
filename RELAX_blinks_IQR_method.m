@@ -25,17 +25,33 @@ function [continuousEEG, epochedEEG] = RELAX_blinks_IQR_method(continuousEEG, ep
             RELAX_cfg.BlinkMaskFocus=150; % this value decides how much data before and after the right and left base of the eye blink to mark as part of the blink artifact window.
         end
         if isfield(RELAX_cfg, 'BlinkElectrodes')==0
-            RELAX_cfg.BlinkElectrodes={'FP1';'FPZ';'FP2';'AF3';'AF4';'F3';'F1';'FZ';'F2';'F4'}; % sets the electrodes to average for blink detection using the IQR method
+            RELAX_cfg.BlinkElectrodes={'E18'; 'E37'; 'E19'; 'E33'; 'E32'; 'E25'; 'E31'; 'E26'}; % sets the electrodes to average for blink detection using the IQR method
         end
         if isfield(RELAX_cfg, 'LowPassFilterAt_6Hz_BeforeDetectingBlinks')==0
             RELAX_cfg.LowPassFilterAt_6Hz_BeforeDetectingBlinks='no'; % low pass filters the data @ 6Hz prior to blink detection (helps if high power alpha is disrupting blink detection, not necessary in the vast majority of cases)
         end
     elseif exist('RELAX_cfg', 'var')==0
         RELAX_cfg.BlinkMaskFocus=150; % this value decides how much data before and after the right and left base of the eye blink to mark as part of the blink artifact window. 
-        RELAX_cfg.BlinkElectrodes={'FP1';'FPZ';'FP2';'AF3';'AF4';'F3';'F1';'FZ';'F2';'F4'}; % sets the electrodes to average for blink detection using the IQR method
+        RELAX_cfg.BlinkElectrodes={'E18'; 'E37'; 'E19'; 'E33'; 'E32'; 'E25'; 'E31'; 'E26'}; % sets the electrodes to average for blink detection using the IQR method
         RELAX_cfg.LowPassFilterAt_6Hz_BeforeDetectingBlinks='no'; % low pass filters the data @ 6Hz prior to blink detection (helps if high power alpha is disrupting blink detection, not necessary in the vast majority of cases)
     end
-           
+    
+    % Check that blink channels are still available after Noisy channels
+    available_channels = {continuousEEG.chanlocs.labels};
+    available_blink_electrodes = intersect(RELAX_cfg.BlinkElectrodes, available_channels);
+    fprintf('Blink electrodes available for IQR method: %s\n', strjoin(available_blink_electrodes, ', '));
+    if length(available_blink_electrodes) < 2
+        % Backup blink electrodes (one row higher on EEG layout)
+        backup_electrodes = {'E12'; 'E20'; 'E27'; 'E34'; 'E21'};
+
+        % Add backup electrodes to the original list
+        RELAX_cfg.BlinkElectrodes = [RELAX_cfg.BlinkElectrodes; backup_electrodes];
+
+        % Update the available blink electrodes list
+        available_blink_electrodes = intersect(RELAX_cfg.BlinkElectrodes, available_channels);
+        fprintf('Added backup blink-affected electrodes. Now available: %s\n', strjoin(available_blink_electrodes, ', '));
+    end
+
     % Robust average re-reference EEG data for more reliable blink detection 
     EEG=continuousEEG;
     [EEG] = RELAX_average_rereference(EEG); % (only used for blink detection in this step, data output from this function is left with the reference montage previously set)

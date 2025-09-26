@@ -250,6 +250,15 @@ for FileNumber=RELAX_cfg.FilesToProcess(1,1:size(RELAX_cfg.FilesToProcess,2))
         PREPBasedChannelToReject{x}=EEG.chanlocs(noisyOut.noisyChannels.all(x)).labels;
         EEG.RELAXProcessingExtremeRejections.PREPBasedChannelToReject = PREPBasedChannelToReject';
     end
+    
+    % Print channel names to be removed by PREP Noisy Channels
+    if ~isempty(noisyOut.noisyChannels.all)
+        noisy_labels = {EEG.chanlocs(noisyOut.noisyChannels.all).labels};
+        fprintf('Removing noisy channels: %s\n', strjoin(noisy_labels, ', '));
+    else
+        fprintf('No noisy channels detected by PREP\n');
+    end
+    
     EEG=pop_select(EEG,'nochannel',noisyOut.noisyChannels.all); % delete noisy electrodes detected by PREP
 
     continuousEEG=EEG;
@@ -625,8 +634,8 @@ for FileNumber=RELAX_cfg.FilesToProcess(1,1:size(RELAX_cfg.FilesToProcess,2))
     EEG.RELAX.Data_has_been_cleaned=1;
     
     %% Save ICA topoplots
-    if exist('save_topo.m', 'file')
-        save_topo(EEG, RELAX_cfg);  % Pass EEG structure and config
+    if exist('save_ICA_topo.m', 'file')
+        save_ICA_topo(EEG, RELAX_cfg);  % Pass EEG structure and config
     end
 
     %% COMPUTE CLEANED METRICS:

@@ -3,8 +3,8 @@
 N_CPU = 16;
 
 EEG_DATA_DIR = '/athena/grosenicklab/store/tms_eeg/mdd_dlpfc';
-RAW_DIR = fullfile(EEG_DATA_DIR, 'subject55_m544_dlpfc_57.5/m544_dlpfc_day5');
-SAVE_DIR = '/athena/grosenicklab/scratch/imk2003/acc_tmseeg/eeg_data/reststate_set_files/m544_dlpfc';
+RAW_DIR = fullfile(EEG_DATA_DIR, 'subject25_m292_dlpfc_59/m292_dlpfc_day5');
+SAVE_DIR = '/athena/grosenicklab/scratch/imk2003/acc_tmseeg/eeg_data/reststate_set_files/test_sets2';
 [~, ppt_target_day, ~] = fileparts(RAW_DIR);  % extract subject identifier from file name
 
 if ~exist(SAVE_DIR, 'dir')
@@ -82,7 +82,7 @@ elseif ~isempty(EEG_post1)
     EEG_post1 = pop_saveset(EEG_post1, 'filename', post_filename, 'filepath', SAVE_DIR);
     fprintf('Only 1 post-treatment EEG file. Saved %s as .set file\n', post_filename);
 else
-    warning('No pre-treatment EEG files found for participant %s', ppt_target_day);
+    warning('No post-treatment EEG files found for participant %s', ppt_target_day);
 end
 
 
