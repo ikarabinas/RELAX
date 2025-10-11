@@ -158,10 +158,21 @@ for FileNumber=RELAX_cfg.FilesToProcess(1,1:size(RELAX_cfg.FilesToProcess,2))
 
     %% Notch filter data:
     if strcmp(RELAX_cfg.NotchFilterType,'Butterworth')
-        % Apply butterworth filter: 
-        EEG = RELAX_filtbutter( EEG, RELAX_cfg.LineNoiseFrequency-3, RELAX_cfg.LineNoiseFrequency+3, 4, 'bandstop','acausal');
-        if ~isempty(RELAX_cfg.electrodes_2_keep_but_not_clean{1})
-            Non_cleaned_electrodes = RELAX_filtbutter( Non_cleaned_electrodes, RELAX_cfg.LineNoiseFrequency-3, RELAX_cfg.LineNoiseFrequency+3, 4, 'bandstop','acausal');
+        % Loop through list of freqs to reduce via notch filter
+        if length(RELAX_cfg.LineNoiseFrequency) > 1
+            for freq = RELAX_cfg.LineNoiseFrequency
+                % Apply butterworth filter: 
+                EEG = RELAX_filtbutter( EEG, freq-5, freq+5, 4, 'bandstop','acausal');
+                if ~isempty(RELAX_cfg.electrodes_2_keep_but_not_clean{1})
+                    Non_cleaned_electrodes = RELAX_filtbutter( Non_cleaned_electrodes, freq-3, freq+3, 4, 'bandstop','acausal');
+                end
+            end
+        else
+            % Apply butterworth filter 
+            EEG = RELAX_filtbutter( EEG, RELAX_cfg.LineNoiseFrequency-5, RELAX_cfg.LineNoiseFrequency+5, 4, 'bandstop','acausal');
+            if ~isempty(RELAX_cfg.electrodes_2_keep_but_not_clean{1})
+                Non_cleaned_electrodes = RELAX_filtbutter( Non_cleaned_electrodes, RELAX_cfg.LineNoiseFrequency-3, RELAX_cfg.LineNoiseFrequency+3, 4, 'bandstop','acausal');
+            end
         end
     end
 
@@ -551,7 +562,7 @@ for FileNumber=RELAX_cfg.FilesToProcess(1,1:size(RELAX_cfg.FilesToProcess,2))
 
         if RELAX_cfg.saveround3==1
             if ~exist([RELAX_cfg.foldername, filesep 'RELAXProcessed' filesep '3xMWF'], 'dir')
-                mkdir([RRELAX_cfg.foldername, filesep 'RELAXProcessed' filesep '3xMWF'])
+                mkdir([RELAX_cfg.foldername, filesep 'RELAXProcessed' filesep '3xMWF'])
             end
             SaveSetMWF3 =[RELAX_cfg.foldername,filesep 'RELAXProcessed' filesep '3xMWF', filesep FileName '_MWF3.set'];    
             EEG = pop_saveset( EEG, SaveSetMWF3 ); 
@@ -816,11 +827,20 @@ end
 
 set(groot, 'defaultAxesTickLabelInterpreter','none');
 if RELAX_cfg.computecleanedmetrics==1
+    % Create output directory for figures
+    fig_dir = fullfile(RELAX_cfg.myPath, 'RELAXProcessed', 'QualityMetrics_Figures');
+    if ~exist(fig_dir, 'dir')
+        mkdir(fig_dir);
+    end
+    % Plot QC Metrics
     try
         figure('Name','BlinkAmplitudeRatio','units','normalized','outerposition',[0.05 0.05 0.95 0.95]);
         boxplot(CleanedMetrics.BlinkAmplitudeRatio);
         xticklabels(RELAX_cfg.files); xtickangle(90);
         set(gca,'FontSize',16, 'FontWeight', 'bold') % Creates an axes and sets its FontSize to 21
+        % Save figure
+        saveas(fig1, fullfile(fig_dir, 'BlinkAmplitudeRatio.png'));
+        saveas(fig1, fullfile(fig_dir, 'BlinkAmplitudeRatio.fig'));
     catch
     end
     try
@@ -829,6 +849,9 @@ if RELAX_cfg.computecleanedmetrics==1
         xtickangle(90); xticks([1:1:size(RELAX_cfg.files,2)]); b(1).BaseValue = RELAX_cfg.MuscleSlopeThreshold;
         xticklabels(RELAX_cfg.files); ylim([RELAX_cfg.MuscleSlopeThreshold max(CleanedMetrics.MeanMuscleStrengthFromOnlySuperThresholdValues)+1]);b.ShowBaseLine='off';
         set(gca,'FontSize',16, 'FontWeight', 'bold') % Creates an axes and sets its FontSize to 21
+        % Save figure
+        saveas(fig2, fullfile(fig_dir, 'MeanMuscleStrengthFromOnlySuperThresholdValues.png'));
+        saveas(fig2, fullfile(fig_dir, 'MeanMuscleStrengthFromOnlySuperThresholdValues.fig'));
     catch
     end
     try
@@ -837,6 +860,9 @@ if RELAX_cfg.computecleanedmetrics==1
         set(gca,'FontSize',16, 'FontWeight', 'bold') % Creates an axes and sets its FontSize to 21
         xtickangle(90); xticks([1:1:size(RELAX_cfg.files,2)]);
         xticklabels(RELAX_cfg.files);
+        % Save figure
+        saveas(fig3, fullfile(fig_dir, 'ProportionEpochsWithMuscleAboveThresholdAnyChannel.png'));
+        saveas(fig3, fullfile(fig_dir, 'ProportionEpochsWithMuscleAboveThresholdAnyChannel.fig'));
     catch
     end
 end

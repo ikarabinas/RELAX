@@ -1,4 +1,4 @@
-%% RELAX EEG CLEANING PIPELINE, Copyright (C) (2022) Neil Bailey
+% RELAX EEG CLEANING PIPELINE, Copyright (C) (2022) Neil Bailey
 
 %     This program is free software: you can redistribute it and/or modify
 %     it under the terms of the GNU General Public License as published by
@@ -186,13 +186,13 @@ end
 RELAX_cfg.Perform_targeted_wICA=1; % This is the recommended artifact reduction method.
 
 % Set preference for PCA whitening (under construction - IMK)
-RELAX_cfg.PCA_whitening = 0;
-if RELAX_cfg.PCA_whitening
+%RELAX_cfg.PCA_whitening = 0;
+%if RELAX_cfg.PCA_whitening
     % Set number of components for PCA decomposition
-    RELAX_cfg.n_comp = 32;
-else
-    RELAX_cfg.n_comp = EEG.nbchan;
-end
+    %RELAX_cfg.n_comp = 32;
+%else
+    %RELAX_cfg.n_comp = EEG.nbchan;
+%end
 
 RELAX_cfg.Do_MWF_Once=1; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no).
 RELAX_cfg.Do_MWF_Twice=1; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no).
@@ -287,8 +287,8 @@ elseif (RELAX_cfg.Do_MWF_Once+RELAX_cfg.Do_MWF_Twice+RELAX_cfg.Do_MWF_Thrice)==0
 end
 % avoiding low pass filtering prior to MWF reduces chances of rank deficiencies increasing potential values for MWF delay period 
 % (downsampling the data after filtering also reduces the chances of rank deficiencies) 
-RELAX_cfg.DownSample='yes'; % set to 'yes' if you wish to downsample the data
-RELAX_cfg.DownSample_to_X_Hz=250; % frequency to downsample to (in samples per second / Hz)
+RELAX_cfg.DownSample='no'; % set to 'yes' if you wish to downsample the data
+RELAX_cfg.DownSample_to_X_Hz=500; % frequency to downsample to (in samples per second / Hz)
 
 RELAX_cfg.FilterType='Butterworth'; % set as 'pop_eegfiltnew' to use EEGLAB's filter or 'Butterworth' to use Butterworth filter
 RELAX_cfg.causal_or_acausal_filter='acausal'; % set as 'acausal' or 'causal'. 
@@ -297,11 +297,11 @@ RELAX_cfg.causal_or_acausal_filter='acausal'; % set as 'acausal' or 'causal'.
 % distortions being projected back from post-stimulus activity to pre-stimulus periods. See: https://doi.org/10.3389/fpsyg.2012.00233
 RELAX_cfg.HighPassFilter=1; % Sets the high pass filter. 1Hz is best for ICA decomposition if you're examining just oscillatory data, 0.25Hz has been suggested to be the highest before ERPs are adversely affected by filtering 
 %(but at least two studies recently have shown better detection of experimental effects with high-pass set at 0.5Hz even for ERPs, and I find a minority of my files show drift at 0.3Hz).
-RELAX_cfg.LowPassFilter=100; % If you filter out data below 75Hz, you can't use the objective muscle detection method
+RELAX_cfg.LowPassFilter=400; % If you filter out data below 75Hz, you can't use the objective muscle detection method
 
 RELAX_cfg.NotchFilterType='Butterworth'; % set as 'Butterworth' to use Butterworth filter, 'ZaplinePlus' to use ZaplinePlus, or PMnotch to use ERPLAB's stop-band Parks-McClellan Notch (requires ERPLAB to be installed). 
 % ZaplinePlus works best on data sampled at 512Hz or below, consider downsampling if above this.
-RELAX_cfg.LineNoiseFrequency=60; % Frequencies for bandstop filter in order to address line noise (set to 60 in countries with 60Hz line noise, and 50 in countries with 50Hz line noise).
+RELAX_cfg.LineNoiseFrequency=[60,120,180,240,300,360]; % Frequencies for bandstop filter in order to address line noise (set to 60 in countries with 60Hz line noise, and 50 in countries with 50Hz line noise).
 
 RELAX_cfg.ElectrodesToDelete={''};
 % If your EEG recording includes non-scalp electrodes or electrodes that you want to delete before cleaning, you can set them to be deleted here. 
@@ -316,8 +316,8 @@ RELAX_cfg.LowPassFilter_aux_elecs=RELAX_cfg.LowPassFilter;
 
 RELAX_cfg.KeepAllInfo=0; % setting this value to 1 keeps all the details from the MWF pre-processing and MWF computation. Helpful for debugging if necessary but makes for large file sizes.
 RELAX_cfg.saveextremesrejected=0; % setting this value to 1 tells the script to save the data after only filtering, extreme channels have been rejected and extreme periods have been noted
-RELAX_cfg.saveround1=0; % setting this value to 1 tells the script to save the first round of MWF pre-processing
-RELAX_cfg.saveround2=0; % setting this value to 1 tells the script to save the second round of MWF pre-processing
+RELAX_cfg.saveround1=1; % setting this value to 1 tells the script to save the first round of MWF pre-processing
+RELAX_cfg.saveround2=1; % setting this value to 1 tells the script to save the second round of MWF pre-processing
 RELAX_cfg.saveround3=1; % setting this value to 1 tells the script to save the third round of MWF pre-processing
 
 RELAX_cfg.OnlyIncludeTaskRelatedEpochs=0; % If this =1, the MWF clean and artifact templates will only include data within 5 seconds of a task trigger (other periods will be marked as NaN, which the MWF script ignores).
