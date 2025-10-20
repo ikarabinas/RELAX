@@ -147,7 +147,7 @@ addpath('/home/imk2003/Documents/MATLAB/eeglab/plugins/RELAX/');
 RELAX_cfg.caploc=[]; % path containing electrode positions. Set to =[] if electrode locations are already in your EEG file.
 
 % Specify the to be processed file locations:
-RELAX_cfg.myPath='/athena/grosenicklab/scratch/imk2003/acc_tmseeg/eeg_data/RELAX_cleaned/ppt';
+RELAX_cfg.myPath='/athena/grosenicklab/scratch/imk2003/acc_tmseeg/eeg_data/RELAX_cleaned/m275_dlpfc';
 
 % Specify whether all data is in a single folder or data are in BIDS format
 % (each EEG file within its own separate folder):
