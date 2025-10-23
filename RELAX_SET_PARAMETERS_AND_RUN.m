@@ -147,7 +147,7 @@ addpath('/home/imk2003/Documents/MATLAB/eeglab/plugins/RELAX/');
 RELAX_cfg.caploc=[]; % path containing electrode positions. Set to =[] if electrode locations are already in your EEG file.
 
 % Specify the to be processed file locations:
-RELAX_cfg.myPath='/athena/grosenicklab/scratch/imk2003/acc_tmseeg/eeg_data/RELAX_cleaned/m275_dlpfc';
+RELAX_cfg.myPath='/athena/grosenicklab/scratch/imk2003/acc_tmseeg/eeg_data/RELAX_cleaned/m275_dlpfc/m275_day1_reststate_pre';
 
 % Specify whether all data is in a single folder or data are in BIDS format
 % (each EEG file within its own separate folder):
@@ -195,8 +195,8 @@ RELAX_cfg.Perform_targeted_wICA=1; % This is the recommended artifact reduction 
 %end
 
 RELAX_cfg.Do_MWF_Once=1; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no).
-RELAX_cfg.Do_MWF_Twice=1; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no).
-RELAX_cfg.Do_MWF_Thrice=1; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no). I think cleaning drift in this is a good idea.
+RELAX_cfg.Do_MWF_Twice=0; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no).
+RELAX_cfg.Do_MWF_Thrice=0; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no). I think cleaning drift in this is a good idea.
 RELAX_cfg.Perform_wICA_on_ICLabel=0; % 1 = Perform wICA on artifact components marked by ICLabel (1 for yes, 0 for no).
 RELAX_cfg.Perform_ICA_subtract=0; % 1 = Perform ICA subtract on artifact components marked by ICLabel (1 for yes, 0 for no) (non-optimal, intended to be optionally used separately to wICA rather than additionally)
 RELAX_cfg.ICA_method='picard';
@@ -297,11 +297,11 @@ RELAX_cfg.causal_or_acausal_filter='acausal'; % set as 'acausal' or 'causal'.
 % distortions being projected back from post-stimulus activity to pre-stimulus periods. See: https://doi.org/10.3389/fpsyg.2012.00233
 RELAX_cfg.HighPassFilter=1; % Sets the high pass filter. 1Hz is best for ICA decomposition if you're examining just oscillatory data, 0.25Hz has been suggested to be the highest before ERPs are adversely affected by filtering 
 %(but at least two studies recently have shown better detection of experimental effects with high-pass set at 0.5Hz even for ERPs, and I find a minority of my files show drift at 0.3Hz).
-RELAX_cfg.LowPassFilter=250; % If you filter out data below 75Hz, you can't use the objective muscle detection method
+RELAX_cfg.LowPassFilter=230; % If you filter out data below 75Hz, you can't use the objective muscle detection method
 
 RELAX_cfg.NotchFilterType='Butterworth'; % set as 'Butterworth' to use Butterworth filter, 'ZaplinePlus' to use ZaplinePlus, or PMnotch to use ERPLAB's stop-band Parks-McClellan Notch (requires ERPLAB to be installed). 
 % ZaplinePlus works best on data sampled at 512Hz or below, consider downsampling if above this.
-RELAX_cfg.LineNoiseFrequency=[60,120,180,240]; % Frequencies for bandstop filter in order to address line noise (set to 60 in countries with 60Hz line noise, and 50 in countries with 50Hz line noise).
+RELAX_cfg.LineNoiseFrequency=[60,120,180]; % Frequencies for bandstop filter in order to address line noise (set to 60 in countries with 60Hz line noise, and 50 in countries with 50Hz line noise).
 
 RELAX_cfg.ElectrodesToDelete={''};
 % If your EEG recording includes non-scalp electrodes or electrodes that you want to delete before cleaning, you can set them to be deleted here. 

@@ -3,7 +3,7 @@
 N_CPU = 16;
 
 EEG_DATA_DIR = '/athena/grosenicklab/store/tms_eeg/mdd_dlpfc';
-RAW_DIR = fullfile(EEG_DATA_DIR, 'subject21_m275_dlpfc_59/m275_dlpfc_day2');
+RAW_DIR = fullfile(EEG_DATA_DIR, 'subject21_m275_dlpfc_59/m275_dlpfc_day5');
 SAVE_DIR = '/athena/grosenicklab/scratch/imk2003/acc_tmseeg/eeg_data/RELAX_cleaned/m275_dlpfc';
 [~, ppt_target_day, ~] = fileparts(RAW_DIR);  % extract subject identifier from file name
 

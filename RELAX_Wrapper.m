@@ -834,7 +834,7 @@ if RELAX_cfg.computecleanedmetrics==1
     end
     % Plot QC Metrics
     try
-        figure('Name','BlinkAmplitudeRatio','units','normalized','outerposition',[0.05 0.05 0.95 0.95]);
+        fig1 = figure('Name','BlinkAmplitudeRatio','units','normalized','outerposition',[0.05 0.05 0.95 0.95]);
         boxplot(CleanedMetrics.BlinkAmplitudeRatio);
         xticklabels(RELAX_cfg.files); xtickangle(90);
         set(gca,'FontSize',16, 'FontWeight', 'bold') % Creates an axes and sets its FontSize to 21
@@ -844,7 +844,7 @@ if RELAX_cfg.computecleanedmetrics==1
     catch
     end
     try
-        figure('Name','MeanMuscleStrengthFromOnlySuperThresholdValues','units','normalized','outerposition',[0.05 0.05 0.95 0.95]);
+        fig2 = figure('Name','MeanMuscleStrengthFromOnlySuperThresholdValues','units','normalized','outerposition',[0.05 0.05 0.95 0.95]);
         b=bar(CleanedMetrics.MeanMuscleStrengthFromOnlySuperThresholdValues); 
         xtickangle(90); xticks([1:1:size(RELAX_cfg.files,2)]); b(1).BaseValue = RELAX_cfg.MuscleSlopeThreshold;
         xticklabels(RELAX_cfg.files); ylim([RELAX_cfg.MuscleSlopeThreshold max(CleanedMetrics.MeanMuscleStrengthFromOnlySuperThresholdValues)+1]);b.ShowBaseLine='off';
@@ -855,7 +855,7 @@ if RELAX_cfg.computecleanedmetrics==1
     catch
     end
     try
-        figure('Name','ProportionOfEpochsShowingMuscleAboveThresholdAnyChannel','units','normalized','outerposition',[0.05 0.05 0.95 0.95]);
+        fig3 = figure('Name','ProportionOfEpochsShowingMuscleAboveThresholdAnyChannel','units','normalized','outerposition',[0.05 0.05 0.95 0.95]);
         bar(CleanedMetrics.ProportionOfEpochsShowingMuscleAboveThresholdAnyChannel);
         set(gca,'FontSize',16, 'FontWeight', 'bold') % Creates an axes and sets its FontSize to 21
         xtickangle(90); xticks([1:1:size(RELAX_cfg.files,2)]);
