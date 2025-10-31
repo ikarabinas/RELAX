@@ -3,8 +3,8 @@
 N_CPU = 16;
 
 EEG_DATA_DIR = '/athena/grosenicklab/store/tms_eeg/mdd_dlpfc';
-RAW_DIR = fullfile(EEG_DATA_DIR, 'subject21_m275_dlpfc_59/m275_dlpfc_day5');
-SAVE_DIR = '/athena/grosenicklab/scratch/imk2003/acc_tmseeg/eeg_data/RELAX_cleaned/m275_dlpfc';
+RAW_DIR = fullfile(EEG_DATA_DIR, 'subject17_m208_dlpfc_57/m208_dlpfc_day2');
+SAVE_DIR = '/athena/grosenicklab/scratch/imk2003/acc_tmseeg/eeg_data/RELAX_cleaned/m208_dlpfc';
 [~, ppt_target_day, ~] = fileparts(RAW_DIR);  % extract subject identifier from file name
 
 if ~exist(SAVE_DIR, 'dir')
@@ -55,7 +55,7 @@ if ~isempty(EEG_pre1) && ~isempty(EEG_pre2)
     EEG_merged_pre.setname = pre_filename;
     %EEG_merged_pre.data = double(EEG_merged_pre.data);  % convert to double precision
     EEG_merged_pre = eeg_checkset(EEG_merged_pre, 'makeur');  % recreate urevent structure
-    EEG_merged_pre = pop_saveset(EEG_merged_pre, 'filename', pre_filename, 'filepath', SAVE_DIR);
+    EEG_merged_pre = pop_saveset(EEG_merged_pre, 'filename', pre_filename, 'filepath', SAVE_DIR, 'savemode', 'twofiles');  % twofiles is memory-saving
     fprintf('Concatenated pre files saved with %d time points\n', EEG_merged_pre.pnts);
 elseif ~isempty(EEG_pre1)
     pre_filename = sprintf('%s_reststate_pre.set', ppt_target_day);
@@ -74,7 +74,7 @@ if ~isempty(EEG_post1) && ~isempty(EEG_post2)
     EEG_merged_post.setname = post_filename;
     %EEG_merged_post.data = double(EEG_merged_post.data);
     EEG_merged_post = eeg_checkset(EEG_merged_post, 'makeur');
-    EEG_merged_post = pop_saveset(EEG_merged_post, 'filename', post_filename, 'filepath', SAVE_DIR);
+    EEG_merged_post = pop_saveset(EEG_merged_post, 'filename', post_filename, 'filepath', SAVE_DIR, 'savemode', 'twofiles');
     fprintf('Concatenated post files saved with %d time points\n', EEG_merged_post.pnts);
 elseif ~isempty(EEG_post1)
     post_filename = sprintf('%s_reststate_post.set', ppt_target_day);

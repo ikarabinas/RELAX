@@ -147,7 +147,7 @@ addpath('/home/imk2003/Documents/MATLAB/eeglab/plugins/RELAX/');
 RELAX_cfg.caploc=[]; % path containing electrode positions. Set to =[] if electrode locations are already in your EEG file.
 
 % Specify the to be processed file locations:
-RELAX_cfg.myPath='/athena/grosenicklab/scratch/imk2003/acc_tmseeg/eeg_data/RELAX_cleaned/m275_dlpfc/m275_day1_reststate_pre';
+RELAX_cfg.myPath='/athena/grosenicklab/scratch/imk2003/acc_tmseeg/eeg_data/RELAX_cleaned/m155_dlpfc';
 
 % Specify whether all data is in a single folder or data are in BIDS format
 % (each EEG file within its own separate folder):
@@ -195,8 +195,8 @@ RELAX_cfg.Perform_targeted_wICA=1; % This is the recommended artifact reduction 
 %end
 
 RELAX_cfg.Do_MWF_Once=1; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no).
-RELAX_cfg.Do_MWF_Twice=0; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no).
-RELAX_cfg.Do_MWF_Thrice=0; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no). I think cleaning drift in this is a good idea.
+RELAX_cfg.Do_MWF_Twice=1; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no).
+RELAX_cfg.Do_MWF_Thrice=1; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no). I think cleaning drift in this is a good idea.
 RELAX_cfg.Perform_wICA_on_ICLabel=0; % 1 = Perform wICA on artifact components marked by ICLabel (1 for yes, 0 for no).
 RELAX_cfg.Perform_ICA_subtract=0; % 1 = Perform ICA subtract on artifact components marked by ICLabel (1 for yes, 0 for no) (non-optimal, intended to be optionally used separately to wICA rather than additionally)
 RELAX_cfg.ICA_method='picard';
