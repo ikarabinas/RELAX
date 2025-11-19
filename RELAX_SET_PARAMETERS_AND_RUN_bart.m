@@ -147,7 +147,7 @@ addpath('/home/imk2003/Documents/MATLAB/eeglab/plugins/RELAX/');
 RELAX_cfg.caploc=[]; % path containing electrode positions. Set to =[] if electrode locations are already in your EEG file.
 
 % Specify the to be processed file locations:
-RELAX_cfg.myPath='/athena/grosenicklab/scratch/imk2003/acc_tmseeg/eeg_data/RELAX_to_clean/twICA_11.14.2025';
+RELAX_cfg.myPath='/athena/grosenicklab/scratch/imk2003/acc_tmseeg/eeg_data/RELAX_to_clean/bart/intersession_room109/';
 
 % Specify whether all data is in a single folder or data are in BIDS format
 % (each EEG file within its own separate folder):
@@ -183,6 +183,8 @@ end
 % are not relevant if present" to include the electrodes you would like to
 % delete.
 
+RELAX_cfg.ManualNoisyChannels = {'E120', 'E145'};  % Define bad channels manually
+
 RELAX_cfg.Perform_targeted_wICA=1; % This is the recommended artifact reduction method.
 
 RELAX_cfg.Do_MWF_Once=0; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no).
@@ -201,26 +203,26 @@ RELAX_cfg.ICLabel_thresholds=[0 0 0 0 0 0 0];
 % classification confidence. If multiple components are above the threshold, 
 % then the maximal value is used to categorize the component
 
-RELAX_cfg.computerawmetrics=1; % Compute blink and muscle metrics from the raw data?
-RELAX_cfg.computecleanedmetrics=1; % Compute SER, ARR, blink and muscle metrics from the cleaned data?
+RELAX_cfg.computerawmetrics=0; % Compute blink and muscle metrics from the raw data?
+RELAX_cfg.computecleanedmetrics=0; % Compute SER, ARR, blink and muscle metrics from the cleaned data?
 
 RELAX_cfg.MWFRoundToCleanBlinks=2; % Which round to clean blinks in (1 for the first, 2 for the second...)
 RELAX_cfg.LowPassFilterAt_6Hz_BeforeDetectingBlinks='no'; % low pass filters the data @ 6Hz prior to blink detection (helps if high power alpha is disrupting blink detection, not necessary in the vast majority of cases, default = 'no')
-RELAX_cfg.ProbabilityDataHasNoBlinks=0; % 0 = data almost certainly has blinks, 1 = data might not have blinks, 2 = data definitely doesn't have blinks.
+RELAX_cfg.ProbabilityDataHasNoBlinks=2; % 0 = data almost certainly has blinks, 1 = data might not have blinks, 2 = data definitely doesn't have blinks.
 % 0 = eg. task related data where participants are focused with eyes open, 
 % 1 = eg. eyes closed recordings, but with participants who might still open their eyes at times, 
 % 2 = eg. eyes closed resting with highly compliant participants and recordings that were strictly made only when participants had their eyes closed.
 
-RELAX_cfg.DriftSeverityThreshold=10; %MAD from the median of all electrodes. This could be set lower and would catch less severe drift 
+RELAX_cfg.DriftSeverityThreshold=20; %MAD from the median of all electrodes. This could be set lower and would catch less severe drift 
 RELAX_cfg.ProportionWorstEpochsForDrift=0.30; % Maximum proportion of epochs to include in the mask from drift artifact type.
 
-RELAX_cfg.ExtremeVoltageShiftThreshold=25; % Threshold MAD from the median all epochs for each electrode against the same electrode in different epochs. This could be set lower and would catch less severe voltage shifts within the epoch
+RELAX_cfg.ExtremeVoltageShiftThreshold=30; % Threshold MAD from the median all epochs for each electrode against the same electrode in different epochs. This could be set lower and would catch less severe voltage shifts within the epoch
 RELAX_cfg.ExtremeAbsoluteVoltageThreshold=1000; % microvolts max or min above which will be excluded from cleaning and deleted from data
-RELAX_cfg.ExtremeImprobableVoltageDistributionThreshold=10; % Threshold SD from the mean of all epochs for each electrode against the same electrode in different epochs. This could be set lower and would catch less severe improbable data
-RELAX_cfg.ExtremeSingleChannelKurtosisThreshold=10; % Threshold kurtosis of each electrode against the same electrode in different epochs. This could be set lower and would catch less severe kurtosis 
-RELAX_cfg.ExtremeAllChannelKurtosisThreshold=10; % Threshold kurtosis across all electrodes. This could be set lower and would catch less severe kurtosis
-RELAX_cfg.ExtremeDriftSlopeThreshold=-4; % slope of log frequency log power below which to reject as drift without neural activity
-RELAX_cfg.ExtremeBlinkShiftThreshold=10; % How many MAD from the median across blink affected epochs to exclude as extreme data 
+RELAX_cfg.ExtremeImprobableVoltageDistributionThreshold=20; % Threshold SD from the mean of all epochs for each electrode against the same electrode in different epochs. This could be set lower and would catch less severe improbable data
+RELAX_cfg.ExtremeSingleChannelKurtosisThreshold=30; % Threshold kurtosis of each electrode against the same electrode in different epochs. This could be set lower and would catch less severe kurtosis 
+RELAX_cfg.ExtremeAllChannelKurtosisThreshold=30; % Threshold kurtosis across all electrodes. This could be set lower and would catch less severe kurtosis
+RELAX_cfg.ExtremeDriftSlopeThreshold=-10; % slope of log frequency log power below which to reject as drift without neural activity
+RELAX_cfg.ExtremeBlinkShiftThreshold=50; % How many MAD from the median across blink affected epochs to exclude as extreme data 
 % (applies the higher value out of this value and the
 % RELAX_cfg.ExtremeVoltageShiftThreshold above as the
 % threshold, which caters for the fact that blinks don't affect
@@ -437,5 +439,5 @@ end
 RELAX_cfg.FilesToProcess=1:numel(RELAX_cfg.files); % Set which files to process
 
 [RELAX_cfg, FileNumber, CleanedMetrics, RawMetrics, RELAXProcessingRoundOneAllParticipants, RELAXProcessingRoundTwoAllParticipants, RELAXProcessing_wICA_AllParticipants,...
-        RELAXProcessing_ICA_AllParticipants, RELAXProcessingRoundThreeAllParticipants, RELAX_issues_to_check, RELAX_issues_to_check_2nd_run, RELAXProcessingExtremeRejectionsAllParticipants] = RELAX_Wrapper (RELAX_cfg);
+        RELAXProcessing_ICA_AllParticipants, RELAXProcessingRoundThreeAllParticipants, RELAX_issues_to_check, RELAX_issues_to_check_2nd_run, RELAXProcessingExtremeRejectionsAllParticipants] = RELAX_Wrapper_bart (RELAX_cfg);
 

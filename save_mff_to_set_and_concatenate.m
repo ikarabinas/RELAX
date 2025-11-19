@@ -2,9 +2,9 @@
 
 N_CPU = 16;
 
-EEG_DATA_DIR = '/athena/grosenicklab/store/tms_eeg/mdd_dlpfc';
-RAW_DIR = fullfile(EEG_DATA_DIR, 'subject17_m208_dlpfc_57/m208_dlpfc_day2');
-SAVE_DIR = '/athena/grosenicklab/scratch/imk2003/acc_tmseeg/eeg_data/RELAX_cleaned/m208_dlpfc';
+EEG_DATA_DIR = '/athena/grosenicklab/store/tms_eeg/';
+RAW_DIR = fullfile(EEG_DATA_DIR, '/bart/');
+SAVE_DIR = '/athena/grosenicklab/scratch/imk2003/acc_tmseeg/eeg_data/RELAX_to_clean/bart';
 [~, ppt_target_day, ~] = fileparts(RAW_DIR);  % extract subject identifier from file name
 
 if ~exist(SAVE_DIR, 'dir')
@@ -80,6 +80,11 @@ elseif ~isempty(EEG_post1)
     post_filename = sprintf('%s_reststate_post.set', ppt_target_day);
     EEG_post1.setname = post_filename;
     EEG_post1 = pop_saveset(EEG_post1, 'filename', post_filename, 'filepath', SAVE_DIR);
+    fprintf('Only 1 post-treatment EEG file. Saved %s as .set file\n', post_filename);
+elseif ~isempty(EEG_post2)
+    post_filename = sprintf('%s_reststate_post.set', ppt_target_day);
+    EEG_post1.setname = post_filename;
+    EEG_post1 = pop_saveset(EEG_post2, 'filename', post_filename, 'filepath', SAVE_DIR);
     fprintf('Only 1 post-treatment EEG file. Saved %s as .set file\n', post_filename);
 else
     warning('No post-treatment EEG files found for participant %s', ppt_target_day);

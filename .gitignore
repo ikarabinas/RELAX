@@ -13,3 +13,8 @@
 # Compiled MEX binaries (all platforms)
 
 *.mex*
+
+
+# ipynb checkpoints
+*.ipynb_checkpoints/*
+
