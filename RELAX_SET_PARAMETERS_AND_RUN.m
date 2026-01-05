@@ -147,7 +147,7 @@ addpath('/home/imk2003/Documents/MATLAB/eeglab/plugins/RELAX/');
 RELAX_cfg.caploc=[]; % path containing electrode positions. Set to =[] if electrode locations are already in your EEG file.
 
 % Specify the to be processed file locations:
-RELAX_cfg.myPath='/athena/grosenicklab/scratch/imk2003/acc_tmseeg/eeg_data/RELAX_to_clean/twICA_11.14.2025';
+RELAX_cfg.myPath='/athena/grosenicklab/scratch/imk2003/acc_tmseeg/eeg_data/RELAX_to_clean/twICA_dlpfc_1.5.26';
 
 % Specify whether all data is in a single folder or data are in BIDS format
 % (each EEG file within its own separate folder):
@@ -211,16 +211,16 @@ RELAX_cfg.ProbabilityDataHasNoBlinks=0; % 0 = data almost certainly has blinks, 
 % 1 = eg. eyes closed recordings, but with participants who might still open their eyes at times, 
 % 2 = eg. eyes closed resting with highly compliant participants and recordings that were strictly made only when participants had their eyes closed.
 
-RELAX_cfg.DriftSeverityThreshold=10; %MAD from the median of all electrodes. This could be set lower and would catch less severe drift 
+RELAX_cfg.DriftSeverityThreshold=6; %MAD from the median of all electrodes. This could be set lower and would catch less severe drift 
 RELAX_cfg.ProportionWorstEpochsForDrift=0.30; % Maximum proportion of epochs to include in the mask from drift artifact type.
 
-RELAX_cfg.ExtremeVoltageShiftThreshold=25; % Threshold MAD from the median all epochs for each electrode against the same electrode in different epochs. This could be set lower and would catch less severe voltage shifts within the epoch
-RELAX_cfg.ExtremeAbsoluteVoltageThreshold=1000; % microvolts max or min above which will be excluded from cleaning and deleted from data
-RELAX_cfg.ExtremeImprobableVoltageDistributionThreshold=10; % Threshold SD from the mean of all epochs for each electrode against the same electrode in different epochs. This could be set lower and would catch less severe improbable data
-RELAX_cfg.ExtremeSingleChannelKurtosisThreshold=10; % Threshold kurtosis of each electrode against the same electrode in different epochs. This could be set lower and would catch less severe kurtosis 
-RELAX_cfg.ExtremeAllChannelKurtosisThreshold=10; % Threshold kurtosis across all electrodes. This could be set lower and would catch less severe kurtosis
+RELAX_cfg.ExtremeVoltageShiftThreshold=15; % Threshold MAD from the median all epochs for each electrode against the same electrode in different epochs. This could be set lower and would catch less severe voltage shifts within the epoch
+RELAX_cfg.ExtremeAbsoluteVoltageThreshold=300; % microvolts max or min above which will be excluded from cleaning and deleted from data
+RELAX_cfg.ExtremeImprobableVoltageDistributionThreshold=6; % Threshold SD from the mean of all epochs for each electrode against the same electrode in different epochs. This could be set lower and would catch less severe improbable data
+RELAX_cfg.ExtremeSingleChannelKurtosisThreshold=6; % Threshold kurtosis of each electrode against the same electrode in different epochs. This could be set lower and would catch less severe kurtosis 
+RELAX_cfg.ExtremeAllChannelKurtosisThreshold=6; % Threshold kurtosis across all electrodes. This could be set lower and would catch less severe kurtosis
 RELAX_cfg.ExtremeDriftSlopeThreshold=-4; % slope of log frequency log power below which to reject as drift without neural activity
-RELAX_cfg.ExtremeBlinkShiftThreshold=10; % How many MAD from the median across blink affected epochs to exclude as extreme data 
+RELAX_cfg.ExtremeBlinkShiftThreshold=6; % How many MAD from the median across blink affected epochs to exclude as extreme data 
 % (applies the higher value out of this value and the
 % RELAX_cfg.ExtremeVoltageShiftThreshold above as the
 % threshold, which caters for the fact that blinks don't affect
@@ -288,7 +288,7 @@ RELAX_cfg.causal_or_acausal_filter='acausal'; % set as 'acausal' or 'causal'.
 % distortions being projected back from post-stimulus activity to pre-stimulus periods. See: https://doi.org/10.3389/fpsyg.2012.00233
 RELAX_cfg.HighPassFilter=1; % Sets the high pass filter. 1Hz is best for ICA decomposition if you're examining just oscillatory data, 0.25Hz has been suggested to be the highest before ERPs are adversely affected by filtering 
 %(but at least two studies recently have shown better detection of experimental effects with high-pass set at 0.5Hz even for ERPs, and I find a minority of my files show drift at 0.3Hz).
-RELAX_cfg.LowPassFilter=230; % If you filter out data below 75Hz, you can't use the objective muscle detection method
+RELAX_cfg.LowPassFilter=220; % If you filter out data below 75Hz, you can't use the objective muscle detection method
 
 RELAX_cfg.NotchFilterType='Butterworth'; % set as 'Butterworth' to use Butterworth filter, 'ZaplinePlus' to use ZaplinePlus, or PMnotch to use ERPLAB's stop-band Parks-McClellan Notch (requires ERPLAB to be installed). 
 % ZaplinePlus works best on data sampled at 512Hz or below, consider downsampling if above this.
@@ -306,14 +306,14 @@ RELAX_cfg.HighPassFilter_aux_elecs=RELAX_cfg.HighPassFilter;
 RELAX_cfg.LowPassFilter_aux_elecs=RELAX_cfg.LowPassFilter;
 
 RELAX_cfg.KeepAllInfo=0; % setting this value to 1 keeps all the details from the MWF pre-processing and MWF computation. Helpful for debugging if necessary but makes for large file sizes.
-RELAX_cfg.saveextremesrejected=0; % setting this value to 1 tells the script to save the data after only filtering, extreme channels have been rejected and extreme periods have been noted
+RELAX_cfg.saveextremesrejected=1; % setting this value to 1 tells the script to save the data after only filtering, extreme channels have been rejected and extreme periods have been noted
 RELAX_cfg.saveround1=1; % setting this value to 1 tells the script to save the first round of MWF pre-processing
 RELAX_cfg.saveround2=1; % setting this value to 1 tells the script to save the second round of MWF pre-processing
 RELAX_cfg.saveround3=1; % setting this value to 1 tells the script to save the third round of MWF pre-processing
 
 RELAX_cfg.OnlyIncludeTaskRelatedEpochs=0; % If this =1, the MWF clean and artifact templates will only include data within 5 seconds of a task trigger (other periods will be marked as NaN, which the MWF script ignores).
 
-RELAX_cfg.MuscleSlopeThreshold=-0.31; %log-frequency log-power slope threshold for muscle artifact. Less stringent = -0.31, Middle Stringency = -0.59 or more stringent = -0.72, more negative thresholds remove more muscle.
+RELAX_cfg.MuscleSlopeThreshold=-0.59; %log-frequency log-power slope threshold for muscle artifact. Less stringent = -0.31, Middle Stringency = -0.59 or more stringent = -0.72, more negative thresholds remove more muscle.
 RELAX_cfg.MaxProportionOfDataCanBeMarkedAsMuscle=0.50;  % Maximum amount of data periods to be marked as muscle artifact for cleaning by the MWF. You want at least a reasonable amount of both clean and artifact templates for effective cleaning.
 % I set this reasonably high, because otherwise muscle artifacts could considerably influence the clean mask and add noise into the data
 RELAX_cfg.ProportionOfMuscleContaminatedEpochsAboveWhichToRejectChannel=0.50; % If the proportion of epochs showing muscle activity from an electrode is higher than this, the electrode is deleted. 

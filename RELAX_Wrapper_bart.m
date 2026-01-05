@@ -134,6 +134,10 @@ for FileNumber=RELAX_cfg.FilesToProcess(1,1:size(RELAX_cfg.FilesToProcess,2))
     savefileone=[RELAX_cfg.foldername filesep 'RELAXProcessed' filesep 'RELAX_cfg'];
     save(savefileone,'RELAX_cfg')
 	
+    % Set channel info
+    EEG.allchan = EEG.chanlocs;
+    EEG.RELAX.ListOfChannelsAfterRejections = {EEG.chanlocs.labels};
+
 	% Initialize output variables
 	RELAXProcessing_wICA_AllParticipants = table();
 	RELAXProcessing_ICA_AllParticipants = table();
@@ -614,10 +618,15 @@ for FileNumber=RELAX_cfg.FilesToProcess(1,1:size(RELAX_cfg.FilesToProcess,2))
         %EEG.Non_cleaned_electrodes=Non_cleaned_electrodes;
     %end
  	% Apply average reference
-    [EEG] = RELAX_average_rereference_bart(EEG);
+    [EEG] = RELAX_average_rereference(EEG);
     EEG = eeg_checkset(EEG);
 	% Ensure allchan struct is properly defined
 	EEG.allchan = EEG.chanlocs;
+    % Check it's a structure array
+    class(EEG.allchan)  % Should return 'struct'
+
+    % Check it has the necessary fields
+    fieldnames(EEG.allchan)  % Should show labels, X, Y, Z, etc.
 
     %% Perform wICA on ICLabel identified artifacts that remain:
     if RELAX_cfg.Perform_targeted_wICA==1
@@ -912,14 +921,14 @@ if RELAX_cfg.ProbabilityDataHasNoBlinks<2 && sum(RELAX_issues_to_check.NoBlinksD
     set( ch, 'FontSize', 12 ); %makes text bigger
 end
 
-if find(RELAX_issues_to_check.ElectrodeRejectionRecommendationsMetOrExceededThreshold>0)>0
-    f = msgbox('Some files met or exceeded the electrode rejection threshold. We recommend visually inspecting the raw and cleaned files where this is the case. Open the "RELAX_issues_to_check" struct in the workspace, and check the third column. Files that exceeded the threshold will show a value above 0. Exclude files where raw data seems irretrievably noisy, or cleaned data still contains excessive noise.'...
-    ,'Some files met or exceeded the electrode rejection threshold');    
-    set(f,'Position',[300,300,450,150]);
-    ah = get( f, 'CurrentAxes' );
-    ch = get( ah, 'Children' );
-    set( ch, 'FontSize', 12 ); %makes text bigger
-end
+%if find(RELAX_issues_to_check.ElectrodeRejectionRecommendationsMetOrExceededThreshold>0)>0
+    %f = msgbox('Some files met or exceeded the electrode rejection threshold. We recommend visually inspecting the raw and cleaned files where this is the case. Open the "RELAX_issues_to_check" struct in the workspace, and check the third column. Files that exceeded the threshold will show a value above 0. Exclude files where raw data seems irretrievably noisy, or cleaned data still contains excessive noise.'...
+    %,'Some files met or exceeded the electrode rejection threshold');    
+    %set(f,'Position',[300,300,450,150]);
+    %ah = get( f, 'CurrentAxes' );
+    %ch = get( ah, 'Children' );
+    %set( ch, 'FontSize', 12 ); %makes text bigger
+%end
 
 toc
 %% POTENTIAL IMPROVEMENTS THAT COULD BE MADE:
