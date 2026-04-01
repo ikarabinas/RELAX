@@ -10,7 +10,7 @@ function save_ICA_topo(EEG, RELAX_cfg)
     % Save in batches (e.g., 20 components per page)
     comps_per_page = 20;
     %total_comps = size(EEG.icawinv, 2);
-    wanted_comps = 60;
+    wanted_comps = size(EEG.icawinv, 2); %60;
     num_pages = ceil(wanted_comps / comps_per_page);
     display(num_pages)
 

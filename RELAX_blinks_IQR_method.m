@@ -43,13 +43,15 @@ function [continuousEEG, epochedEEG] = RELAX_blinks_IQR_method(continuousEEG, ep
     if length(available_blink_electrodes) < 2
         % Backup blink electrodes (one row higher on EEG layout)
         backup_electrodes = {'E12'; 'E20'; 'E27'; 'E34'; 'E21'};
+        
+        error('Insufficient blink electrodes available. Only %d of the required blink electrodes are present in the data. At least 2 blink electrodes are required for IQR method.', length(available_blink_electrodes));
+        
+        % % Add backup electrodes to the original list
+        % RELAX_cfg.BlinkElectrodes = [RELAX_cfg.BlinkElectrodes; backup_electrodes];
 
-        % Add backup electrodes to the original list
-        RELAX_cfg.BlinkElectrodes = [RELAX_cfg.BlinkElectrodes; backup_electrodes];
-
-        % Update the available blink electrodes list
-        available_blink_electrodes = intersect(RELAX_cfg.BlinkElectrodes, available_channels);
-        fprintf('Added backup blink-affected electrodes. Now available: %s\n', strjoin(available_blink_electrodes, ', '));
+        % % Update the available blink electrodes list
+        % available_blink_electrodes = intersect(RELAX_cfg.BlinkElectrodes, available_channels);
+        % fprintf('Added backup blink-affected electrodes. Now available: %s\n', strjoin(available_blink_electrodes, ', '));
     end
 
     % Robust average re-reference EEG data for more reliable blink detection 
@@ -102,7 +104,7 @@ function [continuousEEG, epochedEEG] = RELAX_blinks_IQR_method(continuousEEG, ep
         end
     end
     
-    EEGEyeOnly.data=mean(EEGEyeOnly.data,1); % This could be changed to median, which would increase robustness against bad channels or outliers (but wouldn't work so well if including electrodes barely affected by blinks)
+    EEGEyeOnly.data=median(EEGEyeOnly.data,1); % This could be changed to median, which would increase robustness against bad channels or outliers (but wouldn't work so well if including electrodes barely affected by blinks)
     InterQuartileRangeAllTimepointsAndEpochs=iqr(EEGEyeOnly.data(:,:),2);
     Upper25 = prctile(EEGEyeOnly.data,75,2);
     UpperBound=squeeze(Upper25+(3*InterQuartileRangeAllTimepointsAndEpochs)); % sets the threshold, above which a period is assumed to have a blink

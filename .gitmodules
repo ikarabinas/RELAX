@@ -1,0 +1,3 @@
+[submodule "AARATEPPipeline"]
+	path = AARATEPPipeline
+	url = git@github.com:neil-gallagher/AARATEPPipeline.git

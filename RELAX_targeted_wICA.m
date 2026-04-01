@@ -37,12 +37,16 @@ function [EEG] = RELAX_targeted_wICA(EEG,RELAX_cfg)
         if isfield(RELAX_cfg, 'ICLabel_thresholds')==0
             RELAX_cfg.ICLabel_thresholds=[0 0 0 0 0 0 0];
         end
+        if isfield(RELAX_cfg, 'n_ICA_comp')==0
+            RELAX_cfg.n_ICA_comp=[]; 
+        end
     elseif exist('RELAX_cfg', 'var')==0
         RELAX_cfg.Clean_other_comps='no';
         RELAX_cfg.ICA_method='picard';
         RELAX_cfg.MuscleSlopeThreshold=-0.31; 
         RELAX_cfg.Report_all_wICA_info='no'; 
         RELAX_cfg.ICLabel_thresholds=[0 0 0 0 0 0 0];
+        RELAX_cfg.n_ICA_comp=[];
     end
 
     % run ICA:
@@ -133,9 +137,14 @@ function [EEG] = RELAX_targeted_wICA(EEG,RELAX_cfg)
         Component=reshape(EEG_with_ICA.icaact, size(EEG_with_ICA.icaact,1), []);
     elseif strcmp(RELAX_cfg.ICA_method,'picard') % Run PICARD-O
         disp('Running Picard ICA.')
-        [EEG_with_ICA, ~] = pop_runica_nwb(EEG, 'picard', 'mode','ortho','tol',1e-6,'maxiter',2000); % set tol and maxiter to improve reproducibility
+        if ~isempty(RELAX_cfg.n_ICA_comp)
+            [EEG_with_ICA, ~] = pop_runica_nwb(EEG, 'picard', 'mode','ortho','tol',1e-6,'maxiter',2000,'pca',RELAX_cfg.n_ICA_comp); % set tol and maxiter to improve reproducibility
+        else
+            [EEG_with_ICA, ~] = pop_runica_nwb(EEG, 'picard', 'mode','ortho','tol',1e-6,'maxiter',2000); % set tol and maxiter to improve reproducibility
+        end
         W = EEG_with_ICA.icaweights*EEG_with_ICA.icasphere;
-        A = inv(W);
+%         A = inv(W);
+        A = EEG_with_ICA.icawinv;
         EEG_with_ICA = eeg_checkset(EEG_with_ICA, 'ica'); 
         if isempty(EEG_with_ICA.icaact)==1
             EEG_with_ICA.icaact = (EEG_with_ICA.icaweights*EEG_with_ICA.icasphere)*EEG_with_ICA.data(EEG_with_ICA.icachansind,:);      
@@ -156,7 +165,7 @@ function [EEG] = RELAX_targeted_wICA(EEG,RELAX_cfg)
     end
     ICsMostLikelyEye=(I==3)';
 
-    options.muscleFreqIn=[7,70];
+    options.muscleFreqIn=[12,70];
     options.Freq_to_compute = [1,100];
 
     % Calculate pwelch to enable detection of log-freq log-power slopes
@@ -182,7 +191,7 @@ function [EEG] = RELAX_targeted_wICA(EEG,RELAX_cfg)
 
     %% better muscle comp_number identification:
     comps=size(EEG_with_ICA.icaact,1);
-    options.muscleFreqEx=[RELAX_cfg.LineNoiseFrequency-2 RELAX_cfg.LineNoiseFrequency+2];
+    options.muscleFreqEx=[RELAX_cfg.LineNoiseFrequency-6 RELAX_cfg.LineNoiseFrequency+6];
     for compNum =1:comps
         % Define frequencies to include in the analysis
         if ~isempty(options.muscleFreqIn)
