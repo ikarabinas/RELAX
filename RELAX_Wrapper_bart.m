@@ -676,13 +676,31 @@ for FileNumber=RELAX_cfg.FilesToProcess(1,1:size(RELAX_cfg.FilesToProcess,2))
     if exist('save_ICA_topo.m', 'file')
         save_ICA_topo(EEG, RELAX_cfg);  % Pass EEG structure and config
     end
-
+    
+    %% Interpolate rejected electrodes prior to running GEDAI - IMK added
+    if RELAX_cfg.Run_GEDAI==1
+        if strcmp(RELAX_cfg.InterpolateRejectedElectrodesAfterCleaning,'yes')
+            EEG = pop_interp(EEG, EEG.allchan, 'spherical');
+        end
+    end
+    %% Run GEDAI pipeline - IMK added
+    % Run the Generalized Eigenvalue Deartifacting Instrument (GEDAI)
+    % pipeline for additional denoising
+    if RELAX_cfg.Run_GEDAI==1
+        [EEG, EEGartifacts, SENSAI_score, SENSAI_score_per_band, ...
+            artifact_threshold_per_band, mean_ENOVA, ...
+            ENOVA_per_epoch, ~, ENOVA_per_band] = ...
+        GEDAI(EEG, 'auto', 12, 0.5, 'interpolated', true, false);
+    end
+      
     %% COMPUTE CLEANED METRICS:
     if RELAX_cfg.computecleanedmetrics==1    
         [continuousEEG, epochedEEG] = RELAX_epoching(EEG, RELAX_cfg);
         [continuousEEG, ~] = RELAX_metrics_blinks(continuousEEG, epochedEEG);
         [continuousEEG, ~] = RELAX_metrics_muscle(continuousEEG, epochedEEG, RELAX_cfg);
-
+        
+        % Metrics are computed only on "good" chans. Interpolated chans are discarded
+        % in this step and must be reinterpolated later. IMK modified function.
         [continuousEEG] = RELAX_metrics_final_SER_and_ARR(rawEEG, continuousEEG); % this is only a good metric for testing only the cleaning of artifacts marked for cleaning by MWF, see notes in function.
 
         EEG=continuousEEG;
@@ -702,6 +720,18 @@ for FileNumber=RELAX_cfg.FilesToProcess(1,1:size(RELAX_cfg.FilesToProcess,2))
                     CleanedMetrics.All_SER(FileNumber)=EEG.RELAX_Metrics.Cleaned.All_SER;
                     CleanedMetrics.All_ARR(FileNumber)=EEG.RELAX_Metrics.Cleaned.All_ARR;
                 end
+                if isfield(EEG.etc,'GEDAI')  % IMK added - store GEDAI metrics in RELAX.cfg for export
+
+                    g = EEG.etc.GEDAI;
+
+                    % Core metrics
+                    CleanedMetrics.GEDAI_SENSAI_score(FileNumber)      = g.SENSAI_score;
+                    CleanedMetrics.GEDAI_mean_ENOVA(FileNumber)        = g.mean_ENOVA;
+                    CleanedMetrics.GEDAI_epochs_rejected(FileNumber)   = g.epochs_rejected;
+                    CleanedMetrics.GEDAI_total_epochs(FileNumber)      = g.total_epochs;
+                    CleanedMetrics.GEDAI_percent_rejected(FileNumber)  = g.percentage_rejected;
+                end
+                
             end
             if isfield(EEG.RELAX_Metrics, 'Raw')
                 if isfield(EEG.RELAX_Metrics.Raw,'BlinkAmplitudeRatio')
@@ -778,7 +808,21 @@ for FileNumber=RELAX_cfg.FilesToProcess(1,1:size(RELAX_cfg.FilesToProcess,2))
     if ~exist([RELAX_cfg.foldername, filesep 'RELAXProcessed' filesep 'Cleaned_Data'], 'dir')
         mkdir([RELAX_cfg.foldername, filesep 'RELAXProcessed' filesep 'Cleaned_Data'])
     end
-    SaveSet_CleanedFile =[RELAX_cfg.foldername,filesep 'RELAXProcessed' filesep 'Cleaned_Data', filesep FileName '_RELAX.set'];  
+    if RELAX_cfg.Run_GEDAI==1
+        % Include GEDAI in savefile name and save artifacts file. IMK added
+        savingfilename = '_RELAX_GEDAI.set';
+        
+         if ~exist([RELAX_cfg.foldername, filesep 'RELAXProcessed' filesep 'GEDAI_artifacts'], 'dir')
+            mkdir([RELAX_cfg.foldername, filesep 'RELAXProcessed' filesep 'GEDAI_artifacts'])
+         end
+         
+        SaveSet_ArtifactsFile =[RELAX_cfg.foldername,filesep 'RELAXProcessed' filesep 'GEDAI_artifacts', filesep FileName '_RELAX_GEDAI_artifacts.set'];
+        EEGartifacts = pop_saveset( EEGartifacts, SaveSet_ArtifactsFile ); 
+    else
+        savingfilename = '_RELAX.set';
+    end
+    % Save clean EEG
+    SaveSet_CleanedFile =[RELAX_cfg.foldername,filesep 'RELAXProcessed' filesep 'Cleaned_Data', filesep FileName savingfilename];
     EEG.RELAX_settings_used_to_clean_this_file=RELAX_cfg;
     EEG = pop_saveset( EEG, SaveSet_CleanedFile ); 
     

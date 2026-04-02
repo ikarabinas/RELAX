@@ -1,4 +1,6 @@
-% Concatenate sequential resting state EEG recordings and convert .mff files to .set format for use with RELAX preprocessing pipeline
+% A standalone script for concatenating sequential resting state EEG recordings and converting .mff files to .set format for use with RELAX preprocessing pipeline
+% This could be helpful for concatenating resting state recordings collected with a short break in between, for example, or otherwise to concatenate recordings that were collected within the same setting and state conditions
+% Specify a data directory below holding several EEG files in .mff format for concatenation and conversion to .set format (here, bart is phantom data)
 
 N_CPU = 16;
 
@@ -48,14 +50,14 @@ for k = 1:numel(raw_files)
     end
 end
 
-% Concatenate and save the pre files
+% Concatenate and save the pre-treatment files
 if ~isempty(EEG_pre1) && ~isempty(EEG_pre2)
     EEG_merged_pre = pop_mergeset(EEG_pre1, EEG_pre2);
     pre_filename = sprintf('%s_reststate_pre.set', ppt_target_day);
     EEG_merged_pre.setname = pre_filename;
     %EEG_merged_pre.data = double(EEG_merged_pre.data);  % convert to double precision
     EEG_merged_pre = eeg_checkset(EEG_merged_pre, 'makeur');  % recreate urevent structure
-    EEG_merged_pre = pop_saveset(EEG_merged_pre, 'filename', pre_filename, 'filepath', SAVE_DIR, 'savemode', 'twofiles');  % twofiles is memory-saving
+    EEG_merged_pre = pop_saveset(EEG_merged_pre, 'filename', pre_filename, 'filepath', SAVE_DIR, 'savemode', 'twofiles');  % twofiles is memory-saving for large datasets
     fprintf('Concatenated pre files saved with %d time points\n', EEG_merged_pre.pnts);
 elseif ~isempty(EEG_pre1)
     pre_filename = sprintf('%s_reststate_pre.set', ppt_target_day);
@@ -67,7 +69,7 @@ else
     warning('No pre-treatment EEG files found for participant %s', ppt_target_day);
 end
 
-% Concatenate and save post files
+% Concatenate and save post-treatment files
 if ~isempty(EEG_post1) && ~isempty(EEG_post2)
     EEG_merged_post = pop_mergeset(EEG_post1, EEG_post2);
     post_filename = sprintf('%s_reststate_post.set', ppt_target_day);

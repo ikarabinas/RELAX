@@ -57,8 +57,32 @@ function [continuousEEG, d] = RELAX_metrics_final_SER_and_ARR(rawEEG, continuous
     % Average re-reference the raw data first so the SER and ARR are
     % computed from average re-referenced raw and cleaned data:
     [averageref_rawEEG] = RELAX_average_rereference(rawEEG);
+    
+    %% Align channels before calculating artifact - IMK added section
+    % Necesary for instances of channel mismatch between rawEEG and
+    % continuous EEG. The required interpolation or removed chans prior to
+    % GEDAI leadfield mapping creates this mismatch, and channel alignment here is the fix
+    size(averageref_rawEEG.data)
+    size(continuousEEG.data)
 
-    % Calculate the artifact that has been removed:
+    rawLabels   = {averageref_rawEEG.chanlocs.labels};
+    cleanLabels = {continuousEEG.chanlocs.labels};
+
+    [commonChans, ~, ~] = intersect(rawLabels, cleanLabels, 'stable');
+
+    if isempty(commonChans)
+        error('No common channels between raw and cleaned EEG.');
+    end
+
+    averageref_rawEEG = pop_select(averageref_rawEEG, 'channel', commonChans);
+    continuousEEG     = pop_select(continuousEEG, 'channel', commonChans);
+
+    % Final safety check
+    if ~isequal(size(averageref_rawEEG.data), size(continuousEEG.data))
+        error('Data size mismatch before SER/ARR calculation.');
+    end
+    % -----------------------------------------------------------
+    %% Calculate the artifact that has been removed:
     d = averageref_rawEEG.data-continuousEEG.data;
 
     % Calculate SER and ARR for each type of artifact in the MWF masks:
