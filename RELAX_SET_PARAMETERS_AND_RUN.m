@@ -147,7 +147,7 @@ addpath('/home/imk2003/Documents/MATLAB/eeglab/plugins/RELAX/');
 RELAX_cfg.caploc=[]; % path containing electrode positions. Set to =[] if electrode locations are already in your EEG file.
 
 % Specify the to be processed file locations:
-RELAX_cfg.myPath='/athena/grosenicklab/scratch/imk2003/acc_tmseeg/eeg_data/RELAX_GEDAI/dlpfc';
+RELAX_cfg.myPath='/athena/grosenicklab/scratch/imk2003/acc_tmseeg/preprocessing_testing/GEDAI_test/m155_test';
 RELAX_cfg.GEDAI_refCOVPath='/athena/grosenicklab/scratch/imk2003/eeg_sources_data/GEDAI_refCOV';
 
 % Specify whether all data is in a single folder or data are in BIDS format
@@ -170,7 +170,22 @@ if strcmp(RELAX_cfg.all_data_in_1_folder_or_BIDS_format,'BIDS')
     RELAX_cfg.dirList(already_processed==1,:)=[]; % remove filenames from this list if they have already been cleaned
     RELAX_cfg.folders={RELAX_cfg.dirList.folder};
 else
-    RELAX_cfg.dirList=dir('*.set');
+    RELAX_cfg.dirList = dir('*.set');
+    
+    % IMK added -- Check output folder for already processed files and skip
+    already_cleaned = dir(fullfile(RELAX_cfg.myPath, 'RELAXProcessed', 'Cleaned_Data', '*RELAX*.set'));
+    already_cleaned_names = {already_cleaned.name};
+
+    already_processed = zeros(size(RELAX_cfg.dirList, 1), 1);
+    for f = 1:size(RELAX_cfg.dirList, 1)
+        % Strip extension, check if a cleaned version of this file exists
+        [~, basename, ~] = fileparts(RELAX_cfg.dirList(f).name);
+        if any(contains(already_cleaned_names, basename))
+            already_processed(f) = 1;
+        end
+    end
+    RELAX_cfg.dirList(already_processed == 1, :) = [];
+    % --------------------------------------
 end
 RELAX_cfg.files={RELAX_cfg.dirList.name};
 if isempty(RELAX_cfg.files)
@@ -184,7 +199,7 @@ end
 % are not relevant if present" to include the electrodes you would like to
 % delete.
 
-RELAX_cfg.Perform_targeted_wICA=0; % This is the recommended artifact reduction method.
+RELAX_cfg.Perform_targeted_wICA=0; % This is the RELAX recommended artifact reduction method.
 
 RELAX_cfg.Run_GEDAI=1;  % IMK added
 
@@ -289,13 +304,13 @@ RELAX_cfg.causal_or_acausal_filter='acausal'; % set as 'acausal' or 'causal'.
 % Acausal filters are typical, and avoid filter distortions affecting data only forwards in time, whereas causal filters are less typical, cause
 % filter distortions only forwards in time, but can protect against spurious conclusions that neural activity precedes stimuli due to filter
 % distortions being projected back from post-stimulus activity to pre-stimulus periods. See: https://doi.org/10.3389/fpsyg.2012.00233
-RELAX_cfg.HighPassFilter=1; % Sets the high pass filter. 1Hz is best for ICA decomposition if you're examining just oscillatory data, 0.25Hz has been suggested to be the highest before ERPs are adversely affected by filtering 
+RELAX_cfg.HighPassFilter=0.5; % Sets the high pass filter. 1Hz is best for ICA decomposition if you're examining just oscillatory data, 0.25Hz has been suggested to be the highest before ERPs are adversely affected by filtering 
 %(but at least two studies recently have shown better detection of experimental effects with high-pass set at 0.5Hz even for ERPs, and I find a minority of my files show drift at 0.3Hz).
-RELAX_cfg.LowPassFilter=280; % If you filter out data below 75Hz, you can't use the objective muscle detection method
+RELAX_cfg.LowPassFilter=220; % If you filter out data below 75Hz, you can't use the objective muscle detection method
 
 RELAX_cfg.NotchFilterType='Butterworth'; % set as 'Butterworth' to use Butterworth filter, 'ZaplinePlus' to use ZaplinePlus, or PMnotch to use ERPLAB's stop-band Parks-McClellan Notch (requires ERPLAB to be installed). 
 % ZaplinePlus works best on data sampled at 512Hz or below, consider downsampling if above this.
-RELAX_cfg.LineNoiseFrequency=[60,120,180,240]; % Frequencies for bandstop filter in order to address line noise (set to 60 in countries with 60Hz line noise, and 50 in countries with 50Hz line noise).
+RELAX_cfg.LineNoiseFrequency=[60,120,180]; % Frequencies for bandstop filter in order to address line noise (set to 60 in countries with 60Hz line noise, and 50 in countries with 50Hz line noise).
 
 RELAX_cfg.ElectrodesToDelete={''};
 % If your EEG recording includes non-scalp electrodes or electrodes that you want to delete before cleaning, you can set them to be deleted here. 

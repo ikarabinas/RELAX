@@ -4,13 +4,14 @@ import subprocess
 
 '''
 Convert all .mff EEG files for a given participant list to .set files for use with EEGLAB
+Here, the data have been stored in a directory structure as follows: .../tms_eeg/<tms_target>/<ppt_id>/<treatment_day>/<mff_file>
 Remember to load MATLAB in the terminal with "module load matlab/R2021a" or an equivalent command before running this script with "python run_set_conversion.py"
 '''
 # Define data paths and read in participant IDs csv
 DATA_DIR="/athena/grosenicklab/store/tms_eeg/mdd_dlpfc/"
 SAVE_DIR="/athena/grosenicklab/scratch/imk2003/acc_tmseeg/eeg_data/RELAX_GEDAI/dlpfc"
 ppts_csv_path="/home/imk2003/Documents/updated_subject_list_dlpfc.csv"
-matlab_script = '/home/imk2003/Documents/MATLAB/save_mff_to_set.m'
+matlab_script = '/home/imk2003/Documents/MATLAB/eeglab/plugins/RELAX/convert_files_to_eeglab_format/save_mff_to_set.m'
 ppts_csv = pd.read_csv(ppts_csv_path)
 days_list = ['day1', 'day2', 'day3', 'day4', 'day5', 'week', 'baseline']
 
