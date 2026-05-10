@@ -1,21 +1,13 @@
-# RELAX
+# RELAX-GEDAI
+This fork of the Reduction of Electroencephalographic Artifacts (RELAX) incorporates the Generalized Eigenvalue De-Artifacting Instrument (GEDAI) method of lead field filtering for denoising of resting state EEG. GEDAI as implemented here can be run with with custom reference covariance matrices (refCOV) computed for participants based on their individual forward model (if anatomical MR images are available).
 
-The Reduction of Electroencephalographic Artifacts (RELAX) is an open source extension for EEGLAB that provides a fully automated method to clean EEG data.
+Specify denoising parameters and the paths to your EEG data and custom refCOV matrices in RELAX_SET_PARAMETERS_AND_RUN.m. We have had success cleaning relatively noisy files collected in an outpatient clinical setting with a combined approach: RELAX_cfg.Perform_targeted_wICA=1 and RELAX_cfg.Run_GEDAI=1. These settings will apply temporal filtering, bad channel and bad segment rejection, targeted wavelet-enhaced ICA (twICA), then follow with GEDAI.
 
-## Downloading RELAX:
+Custom refCOV matrices can be generated from individual participant lead fields.
+See ikarabinas/GEDAI-master for code and example usage of GEDAI denoising with custom participant-specific refCOVs.  
 
-To download RELAX, visit the RELAX release page: https://github.com/NeilwBailey/RELAX/releases, and unzip the file into your EEGLAB plugins folder. Alternatively, install RELAX directly using EEGLAB's plugin manager (within EEGLAB click on "File" > "Manage EEGLAB extensions" > search for RELAX).
+## 📧 Contact
+For questions about this fork: Isabella Karabinas - imk2003@med.cornell.edu  
 
-## Further information:
-
-Further information can be found in the publication manuscripts, which must be cited when RELAX is used: 
-
-Bailey, N. W., Biabani, M., Hill, A. T., Miljevic, A., Rogasch, N. C., McQueen, B., Murphy, O.W., & Fitzgerald, P. B. (2023). Introducing RELAX: An automated pre-processing pipeline for cleaning EEG data-Part 1: Algorithm and application to oscillations. Clinical Neurophysiology.
-
-Bailey, N. W., Hill, A. T., Biabani, M., Murphy, O. W., Rogasch, N. C., McQueen, B., Miljevic, A., & Fitzgerald, P. B. (2023). RELAX part 2: A fully automated EEG data cleaning algorithm that is applicable to Event-Related-Potentials. Clinical Neurophysiology.
-
-## *New cleaning technique:*
-
-Additionally, we have recently published a pre-print providing a method to target wICA cleaning to specific artifact periods and frequencies. If the targeted wICA method is used, the following pre-print should be cited:
-
-Bailey N.W., Hill A.T., Godfrey K., Perera M.P.N., Rogasch N.C., Fitzgibbon B.M., & Fitzgerald P.B. (2024). EEG is better when cleaning effectively targets artifacts. BioRxiv. https://doi.org/10.1101/2024.06.06.597688
+RELAX repository: NeilwBailey/RELAX  
+GEDAI repository: neurotuning/GEDAI-master  
