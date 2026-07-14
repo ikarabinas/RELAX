@@ -22,15 +22,16 @@ end
 % Find a matching refCOV file. There should be one per participant.
 matchIdx = find(startsWith({dirList.name}, eeg_prefix));
 if isempty(matchIdx)
-    error('No matching refCOV found for prefix: %s', eeg_prefix);
+    warning('No matching refCOV found for prefix: %s. Utilizing precomputed refCOV for GEDAI denoising.', eeg_prefix);
+    refCOV = 'interpolated';
 elseif length(matchIdx) > 1
     error('Multiple matching refCOV files found for prefix: %s', eeg_prefix);
+else
+    % Load and return refCOV
+    refCOV_path = fullfile(RELAX_cfg.GEDAI_refCOVPath, dirList(matchIdx).name);
+    disp(['Loading custom ppt refCOV from: ' refCOV_path]);
+    data = load(refCOV_path);
+    refCOV = data.refCOV;
 end
-
-% Load and return refCOV
-refCOV_path = fullfile(RELAX_cfg.GEDAI_refCOVPath, dirList(matchIdx).name);
-disp(['Loading custom ppt refCOV from: ' refCOV_path]);
-data = load(refCOV_path);
-refCOV = data.refCOV;
 
 end

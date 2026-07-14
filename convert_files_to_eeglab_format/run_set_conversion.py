@@ -5,12 +5,12 @@ import subprocess
 '''
 Convert all .mff EEG files for a given participant list to .set files for use with EEGLAB
 Here, the data have been stored in a directory structure as follows: .../tms_eeg/<tms_target>/<ppt_id>/<treatment_day>/<mff_file>
-Remember to load MATLAB in the terminal with "module load matlab/R2021a" or an equivalent command before running this script with "python run_set_conversion.py"
+Remember to load MATLAB in the terminal with "module load matlab/R2023a" or an equivalent command before running this script with "python run_set_conversion.py"
 '''
 # Define data paths and read in participant IDs csv
-DATA_DIR="/athena/grosenicklab/store/tms_eeg/mdd_dlpfc/"
-SAVE_DIR="/athena/grosenicklab/scratch/imk2003/acc_tmseeg/eeg_data/RELAX_GEDAI/dlpfc"
-ppts_csv_path="/home/imk2003/Documents/updated_subject_list_dlpfc.csv"
+DATA_DIR="/athena/grosenicklab/store/tms_eeg/ocd_rofc/"
+SAVE_DIR="/athena/grosenicklab/scratch/imk2003/acc_tmseeg/eeg_data/RELAX_GEDAI/RELAX_twICA_GEDAI-ofc/"
+ppts_csv_path="/home/imk2003/Documents/updated_subject_list_rofc.csv"
 matlab_script = '/home/imk2003/Documents/MATLAB/eeglab/plugins/RELAX/convert_files_to_eeglab_format/save_mff_to_set.m'
 ppts_csv = pd.read_csv(ppts_csv_path)
 days_list = ['day1', 'day2', 'day3', 'day4', 'day5', 'week', 'baseline']
@@ -20,7 +20,8 @@ data_dir_name = os.path.basename(os.path.normpath(DATA_DIR))  # "mdd_dlpfc"
 tms_target = data_dir_name.split('_')[-1].upper()             # "DLPFC"
 
 # Filter CSV to keep only rows with specified TMS target and extract matching ppts
-filtered_csv = ppts_csv[ppts_csv['tms_target'].str.upper() == tms_target]
+#filtered_csv = ppts_csv[ppts_csv['tms_target'].str.upper() == tms_target]
+filtered_csv = ppts_csv
 ppts_list = list(filtered_csv['record_id'])
 
 # Extract unique participant IDs from saved files
@@ -28,7 +29,11 @@ saved_files = os.listdir(SAVE_DIR)
 already_converted_ppt_files = set()
 for file in saved_files:
     if file.endswith('.set'):
-        ppt_id = file.split('_')[0]
+        if 'crossover' in file:
+            ppt_id = file.split('_')[0] + '_crossover'
+        else:
+            ppt_id = file.split('_')[0]
+            
         already_converted_ppt_files.add(ppt_id)
 
 
