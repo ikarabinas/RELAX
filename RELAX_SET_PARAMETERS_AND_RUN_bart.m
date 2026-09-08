@@ -147,7 +147,7 @@ addpath('/home/imk2003/Documents/MATLAB/eeglab/plugins/RELAX/');
 RELAX_cfg.caploc=[]; % path containing electrode positions. Set to =[] if electrode locations are already in your EEG file.
 
 % Specify the to be processed file locations:
-RELAX_cfg.myPath='/athena/grosenicklab/scratch/imk2003/acc_tmseeg/eeg_data/RELAX_to_clean/bart/bart_RELAX/room107';
+RELAX_cfg.myPath='/athena/grosenicklab/scratch/imk2003/acc_tmseeg/eeg_data/RELAX_to_clean/bart/bart_RELAX_to_clean/room114';
 
 % Specify whether all data is in a single folder or data are in BIDS format
 % (each EEG file within its own separate folder):
@@ -183,9 +183,10 @@ end
 % are not relevant if present" to include the electrodes you would like to
 % delete.
 
-RELAX_cfg.ManualNoisyChannels = {'E218', 'E190'};  % Define bad channels manually for Bart (phantom)
+RELAX_cfg.ManualNoisyChannels = {'E93','E241'};  % Define bad channels manually for Bart (phantom)
 
 RELAX_cfg.Perform_targeted_wICA=1; % This is the recommended artifact reduction method.
+RELAX_cfg.Run_GEDAI=1;  % IMK added
 
 RELAX_cfg.Do_MWF_Once=0; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no).
 RELAX_cfg.Do_MWF_Twice=0; % 1 = Perform the MWF cleaning a second time (1 for yes, 0 for no).

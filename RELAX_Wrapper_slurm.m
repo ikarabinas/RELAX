@@ -15,7 +15,7 @@
 
 %% RELAX_Wrapper:
 function [RELAX_cfg, FileNumber, CleanedMetrics, RawMetrics, RELAXProcessingMWFStepOneAllParticipants, RELAXProcessingMWFStepTwoAllParticipants, RELAXProcessing_wICA_AllParticipants,...
-        RELAXProcessing_ICA_AllParticipants, RELAXProcessingMWFStepThreeAllParticipants, RELAX_issues_to_check, RELAX_issues_to_check_2nd_run, RELAXProcessingExtremeRejectionsAllParticipants] = RELAX_Wrapper (RELAX_cfg)
+        RELAXProcessing_ICA_AllParticipants, RELAXProcessingMWFStepThreeAllParticipants, RELAX_issues_to_check, RELAX_issues_to_check_2nd_run, RELAXProcessingExtremeRejectionsAllParticipants] = RELAX_Wrapper_slurm (RELAX_cfg)
 
 % Load pre-processing statistics file for these participants if it already
 % exists (note that this can cause errors if the number of variables
@@ -27,64 +27,96 @@ tic;
 % Turn off auto fig display
 set(0, 'DefaultFigureVisible', 'off')
 
-% Detect number of workers available to parpool (for use with slurm)
-n_workers = feature('numcores');  % detects cores available to this job
-parpool(n_workers);
-fprintf('Started parpool with %d workers\n', n_workers);
+% % Detect number of workers actually allocated to this job by SLURM
+% n_workers = str2double(getenv('SLURM_CPUS_PER_TASK'));
+% if isnan(n_workers) || n_workers < 1
+%     n_workers = feature('numcores'); % fallback for non-SLURM/interactive runs
+% end
+% if isempty(gcp('nocreate'))
+%     parpool(n_workers);
+% end
+% fprintf('Started parpool with %d workers\n', n_workers);
 
-%savedir='/athena/grosenicklab/scratch/imk2003/acc_tmseeg/relax_test';
+% Set output path
 RELAX_cfg.OutputPath=[RELAX_cfg.myPath filesep 'RELAXProcessed' filesep];   % use fileseparators for increased compatability 
-%RELAX_cfg.OutputPath=[savedir filesep 'RELAXProcessed' filesep];   % set outputh directory path
 if ~exist(RELAX_cfg.OutputPath, 'dir'); mkdir(RELAX_cfg.OutputPath); end % make dir if not present
 fprintf('Output path set to: %s\n', RELAX_cfg.OutputPath);
 
 cd(RELAX_cfg.OutputPath);
 dirList=dir('*.mat');
-for x=1:numel(dirList)
-    if  strcmp(dirList(x).name,'ProcessingStatisticsRoundOne.mat')==1
-        load('ProcessingStatisticsRoundOne.mat');
+
+% Use a per-participant tag so parallel array tasks never collide on filenames
+tag = 'local';
+if isfield(RELAX_cfg,'ParticipantTag') && ~isempty(RELAX_cfg.ParticipantTag)
+    tag = RELAX_cfg.ParticipantTag;
+end
+
+% Each SLURM task processes one participant sequentially
+fprintf('Processing participant %s with SLURM task %s\n', tag, getenv('SLURM_ARRAY_TASK_ID'));
+
+statsDir = fullfile(RELAX_cfg.OutputPath, 'PerParticipantStats');
+if ~exist(statsDir, 'dir'); mkdir(statsDir); end
+
+ProcessingStatisticsFile = fullfile(statsDir, sprintf('ProcessingStatistics_%s.mat', tag));
+RawMetricsFile = fullfile(statsDir, sprintf('RawMetrics_%s.mat', tag));
+CleanedMetricsFile = fullfile(statsDir, sprintf('CleanedMetrics_%s.mat', tag));
+ProcessingStatistics_wICAFile = fullfile(statsDir, sprintf('ProcessingStatistics_wICA_%s.mat', tag));
+RELAX_issues_to_checkFile = fullfile(statsDir, sprintf('RELAX_issues_to_check_%s.mat', tag));
+RELAXProcessingExtremeRejectionsAllParticipantsFile = fullfile(statsDir, sprintf('RELAXProcessingExtremeRejectionsAllParticipants_%s.mat', tag));
+
+statsFiles = {ProcessingStatisticsFile, RawMetricsFile, CleanedMetricsFile, ProcessingStatistics_wICAFile, RELAX_issues_to_checkFile, RELAXProcessingExtremeRejectionsAllParticipantsFile};
+% Only load if this participant's own files already exist (e.g. resuming a partial run)
+for x=1:numel(statsFiles)    
+    if exist(statsFiles{x}, 'file')
+        load(statsFiles{x});
     end
 end
-for x=1:numel(dirList)
-    if  strcmp(dirList(x).name,'ProcessingStatisticsRoundTwo.mat')==1
-        load('ProcessingStatisticsRoundTwo.mat');
-    end
-end
-for x=1:numel(dirList)
-    if  strcmp(dirList(x).name,'ProcessingStatisticsRoundThree.mat')==1
-        load('ProcessingStatisticsRoundThree.mat');
-    end
-end
-for x=1:numel(dirList)
-    if  strcmp(dirList(x).name,'RawMetrics.mat')==1
-        load('RawMetrics.mat');
-    end
-end
-for x=1:numel(dirList)
-    if  strcmp(dirList(x).name,'CleanedMetrics.mat')==1
-        load('CleanedMetrics.mat');
-    end
-end
-for x=1:numel(dirList)
-    if  strcmp(dirList(x).name,'ProcessingStatistics_wICA.mat')==1
-        load('ProcessingStatistics_wICA.mat');
-    end
-end
-for x=1:numel(dirList)
-    if  strcmp(dirList(x).name,'ProcessingStatistics_ICA.mat')==1
-        load('ProcessingStatistics_ICA.mat');
-    end
-end
-for x=1:numel(dirList)
-    if  strcmp(dirList(x).name,'RELAX_issues_to_check.mat')==1
-        load('RELAX_issues_to_check.mat');
-    end
-end
-for x=1:numel(dirList)
-    if  strcmp(dirList(x).name,'RELAXProcessingExtremeRejectionsAllParticipants.mat')==1
-        load('RELAXProcessingExtremeRejectionsAllParticipants.mat');
-    end
-end
+
+% for x=1:numel(dirList)
+%     if  strcmp(dirList(x).name,'ProcessingStatisticsRoundOne.mat')==1
+%         load('ProcessingStatisticsRoundOne.mat');
+%     end
+% end
+% for x=1:numel(dirList)
+%     if  strcmp(dirList(x).name,'ProcessingStatisticsRoundTwo.mat')==1
+%         load('ProcessingStatisticsRoundTwo.mat');
+%     end
+% end
+% for x=1:numel(dirList)
+%     if  strcmp(dirList(x).name,'ProcessingStatisticsRoundThree.mat')==1
+%         load('ProcessingStatisticsRoundThree.mat');
+%     end
+% end
+% for x=1:numel(dirList)
+%     if  strcmp(dirList(x).name,'RawMetrics.mat')==1
+%         load('RawMetrics.mat');
+%     end
+% end
+% for x=1:numel(dirList)
+%     if  strcmp(dirList(x).name,'CleanedMetrics.mat')==1
+%         load('CleanedMetrics.mat');
+%     end
+% end
+% for x=1:numel(dirList)
+%     if  strcmp(dirList(x).name,'ProcessingStatistics_wICA.mat')==1
+%         load('ProcessingStatistics_wICA.mat');
+%     end
+% end
+% for x=1:numel(dirList)
+%     if  strcmp(dirList(x).name,'ProcessingStatistics_ICA.mat')==1
+%         load('ProcessingStatistics_ICA.mat');
+%     end
+% end
+% for x=1:numel(dirList)
+%     if  strcmp(dirList(x).name,'RELAX_issues_to_check.mat')==1
+%         load('RELAX_issues_to_check.mat');
+%     end
+% end
+% for x=1:numel(dirList)
+%     if  strcmp(dirList(x).name,'RELAXProcessingExtremeRejectionsAllParticipants.mat')==1
+%         load('RELAXProcessingExtremeRejectionsAllParticipants.mat');
+%     end
+% end
 
 if ~isempty(RELAX_cfg.filename)
     RELAX_cfg.FilesToProcess = 1;
@@ -111,9 +143,19 @@ for FileNumber=RELAX_cfg.FilesToProcess(1,1:size(RELAX_cfg.FilesToProcess,2))
         end
     end
 
-    clearvars -except 'RELAX_cfg' 'FileNumber' 'CleanedMetrics' 'RawMetrics' 'RELAXProcessingMWFStepOneAllParticipants' 'RELAXProcessingMWFStepTwoAllParticipants' 'RELAXProcessing_wICA_AllParticipants'...
-        'RELAXProcessing_ICA_AllParticipants' 'RELAXProcessingMWFStepThreeAllParticipants' 'Warning' 'RELAX_issues_to_check' 'RELAX_issues_to_check_2nd_run'...
-        'RELAXProcessingExtremeRejectionsAllParticipants' 'WarningAboutFileNumber';
+    % clearvars -except 'RELAX_cfg' 'FileNumber' 'CleanedMetrics' 'RawMetrics' 'RELAXProcessingMWFStepOneAllParticipants' 'RELAXProcessingMWFStepTwoAllParticipants' 'RELAXProcessing_wICA_AllParticipants'...
+    %     'RELAXProcessing_ICA_AllParticipants' 'RELAXProcessingMWFStepThreeAllParticipants' 'Warning' 'RELAX_issues_to_check' 'RELAX_issues_to_check_2nd_run'...
+    %     'RELAXProcessingExtremeRejectionsAllParticipants' 'WarningAboutFileNumber';
+    clearvars -except 'RELAX_cfg' 'FileNumber' 'CleanedMetrics' 'RawMetrics' ...
+            'RELAXProcessingMWFStepOneAllParticipants' 'RELAXProcessingMWFStepTwoAllParticipants' ...
+            'RELAXProcessing_wICA_AllParticipants' 'RELAXProcessing_ICA_AllParticipants' ...
+            'RELAXProcessingMWFStepThreeAllParticipants' 'Warning' 'RELAX_issues_to_check' ...
+            'RELAX_issues_to_check_2nd_run' 'RELAXProcessingExtremeRejectionsAllParticipants' ...
+            'WarningAboutFileNumber' ...
+            'ProcessingStatisticsFile' 'ProcessingStatisticsRoundTwoFile' 'ProcessingStatisticsRoundThreeFile' ...
+            'RawMetricsFile' 'CleanedMetricsFile' 'ProcessingStatistics_wICAFile' 'ProcessingStatistics_ICAFile' ...
+            'RELAX_issues_to_checkFile' 'RELAXProcessingExtremeRejectionsAllParticipantsFile' 'statsDir' 'tag';
+
     %% Load data (assuming the data is in EEGLAB .set format):
 
     %  1.1.4: fix error where PREP seems to be removed from the path after an
@@ -170,16 +212,16 @@ for FileNumber=RELAX_cfg.FilesToProcess(1,1:size(RELAX_cfg.FilesToProcess,2))
         if length(RELAX_cfg.LineNoiseFrequency) > 1
             for freq = RELAX_cfg.LineNoiseFrequency
                 % Apply butterworth filter: 
-                EEG = RELAX_filtbutter( EEG, freq-5, freq+5, 4, 'bandstop','acausal');
+                EEG = RELAX_filtbutter( EEG, freq-4, freq+4, 4, 'bandstop','acausal');
                 if ~isempty(RELAX_cfg.electrodes_2_keep_but_not_clean{1})
-                    Non_cleaned_electrodes = RELAX_filtbutter( Non_cleaned_electrodes, freq-3, freq+3, 4, 'bandstop','acausal');
+                    Non_cleaned_electrodes = RELAX_filtbutter( Non_cleaned_electrodes, freq-4, freq+4, 4, 'bandstop','acausal');
                 end
             end
         else
             % Apply butterworth filter 
-            EEG = RELAX_filtbutter( EEG, RELAX_cfg.LineNoiseFrequency-5, RELAX_cfg.LineNoiseFrequency+5, 4, 'bandstop','acausal');
+            EEG = RELAX_filtbutter( EEG, RELAX_cfg.LineNoiseFrequency-4, RELAX_cfg.LineNoiseFrequency+4, 4, 'bandstop','acausal');
             if ~isempty(RELAX_cfg.electrodes_2_keep_but_not_clean{1})
-                Non_cleaned_electrodes = RELAX_filtbutter( Non_cleaned_electrodes, RELAX_cfg.LineNoiseFrequency-3, RELAX_cfg.LineNoiseFrequency+3, 4, 'bandstop','acausal');
+                Non_cleaned_electrodes = RELAX_filtbutter( Non_cleaned_electrodes, RELAX_cfg.LineNoiseFrequency-4, RELAX_cfg.LineNoiseFrequency+4, 4, 'bandstop','acausal');
             end
         end
     end
@@ -667,7 +709,7 @@ for FileNumber=RELAX_cfg.FilesToProcess(1,1:size(RELAX_cfg.FilesToProcess,2))
         
         % Load custom refCOV for paticipant file
         %refCOV_ppt = loadGEDAI_ppt_refCOV(RELAX_cfg);
-        
+
         % Run GEDAI with the custom refCOV and otherwise default params
         % Retain the cleaned continous EEG and artifact outputs for later use
         [EEG, EEGartifacts, sensai_fig] = GEDAI(EEG, 'auto', 12, 0.5, 'custom', true, false, 0.80, 'eeg');
@@ -695,7 +737,7 @@ for FileNumber=RELAX_cfg.FilesToProcess(1,1:size(RELAX_cfg.FilesToProcess,2))
         
         % Metrics are computed only on "good" chans. Interpolated chans are discarded
         % in this step and must be reinterpolated later. IMK modified function.
-        [continuousEEG] = RELAX_metrics_final_SER_and_ARR(rawEEG, continuousEEG); % this is only a good metric for testing only the cleaning of artifacts marked for cleaning by MWF, see notes in function.
+        %[continuousEEG] = RELAX_metrics_final_SER_and_ARR(rawEEG, continuousEEG); % this is only a good metric for testing only the cleaning of artifacts marked for cleaning by MWF, see notes in function.
 
         EEG=continuousEEG;
         EEG = rmfield(EEG,'RELAXProcessing');
@@ -710,10 +752,10 @@ for FileNumber=RELAX_cfg.FilesToProcess(1,1:size(RELAX_cfg.FilesToProcess,2))
                     CleanedMetrics.MeanMuscleStrengthFromOnlySuperThresholdValues(FileNumber)=EEG.RELAX_Metrics.Cleaned.MeanMuscleStrengthFromOnlySuperThresholdValues; 
                     CleanedMetrics.ProportionOfEpochsShowingMuscleAboveThresholdAnyChannel(FileNumber)=EEG.RELAX_Metrics.Cleaned.ProportionOfEpochsShowingMuscleAboveThresholdAnyChannel;
                 end
-                if isfield(EEG.RELAX_Metrics.Cleaned,'All_SER')
-                    CleanedMetrics.All_SER(FileNumber)=EEG.RELAX_Metrics.Cleaned.All_SER;
-                    CleanedMetrics.All_ARR(FileNumber)=EEG.RELAX_Metrics.Cleaned.All_ARR;
-                end
+                % if isfield(EEG.RELAX_Metrics.Cleaned,'All_SER')
+                %     CleanedMetrics.All_SER(FileNumber)=EEG.RELAX_Metrics.Cleaned.All_SER;
+                %     CleanedMetrics.All_ARR(FileNumber)=EEG.RELAX_Metrics.Cleaned.All_ARR;
+                %end
                 if isfield(EEG.etc,'GEDAI')  % IMK added - store GEDAI metrics in RELAX.cfg for export
 
                     g = EEG.etc.GEDAI;
@@ -844,61 +886,61 @@ for FileNumber=RELAX_cfg.FilesToProcess(1,1:size(RELAX_cfg.FilesToProcess,2))
     % Also set empty output variables in case these are not produced because certain
     % parameters have been switched off:
 
-    savefileone=[RELAX_cfg.myPath filesep 'RELAXProcessed' filesep 'RELAXProcessingExtremeRejectionsAllParticipants'];
-    save(savefileone,'RELAXProcessingExtremeRejectionsAllParticipants')
+    %savefileone=[RELAX_cfg.myPath filesep 'RELAXProcessed' filesep 'RELAXProcessingExtremeRejectionsAllParticipants'];
+    save(RELAXProcessingExtremeRejectionsAllParticipantsFile, 'RELAXProcessingExtremeRejectionsAllParticipants')
     if RELAX_cfg.Do_MWF_Once==1
-        savefileone=[RELAX_cfg.myPath filesep 'RELAXProcessed' filesep 'ProcessingStatisticsRoundOne'];
-        save(savefileone,'RELAXProcessingMWFStepOneAllParticipants')
+        %savefileone=[RELAX_cfg.myPath filesep 'RELAXProcessed' filesep 'ProcessingStatisticsRoundOne'];
+        save(ProcessingStatisticsFile,'RELAXProcessingMWFStepOneAllParticipants')
     else
         RELAXProcessingMWFStepOneAllParticipants={};
     end
     if RELAX_cfg.Do_MWF_Twice==1
-        savefiletwo=[RELAX_cfg.myPath filesep 'RELAXProcessed' filesep 'ProcessingStatisticsRoundTwo'];
-        save(savefiletwo,'RELAXProcessingMWFStepTwoAllParticipants')
+        %savefiletwo=[RELAX_cfg.myPath filesep 'RELAXProcessed' filesep 'ProcessingStatisticsRoundTwo'];
+        save(ProcessingStatisticsFile,'RELAXProcessingMWFStepTwoAllParticipants')
     else
         RELAXProcessingMWFStepTwoAllParticipants={};
     end
     if RELAX_cfg.Do_MWF_Thrice==1
-        savefilethree=[RELAX_cfg.myPath filesep 'RELAXProcessed' filesep 'ProcessingStatisticsRoundThree'];
-        save(savefilethree,'RELAXProcessingMWFStepThreeAllParticipants')
+        %savefilethree=[RELAX_cfg.myPath filesep 'RELAXProcessed' filesep 'ProcessingStatisticsRoundThree'];
+        save(ProcessingStatisticsFile,'RELAXProcessingMWFStepThreeAllParticipants')
     else
         RELAXProcessingMWFStepThreeAllParticipants={};
     end
     if RELAX_cfg.Perform_wICA_on_ICLabel==1 || RELAX_cfg.Perform_targeted_wICA==1
-        savefilefour=[RELAX_cfg.myPath filesep 'RELAXProcessed' filesep 'ProcessingStatistics_wICA'];
-        save(savefilefour,'RELAXProcessing_wICA_AllParticipants')
+        %savefilefour=[RELAX_cfg.myPath filesep 'RELAXProcessed' filesep 'ProcessingStatistics_wICA'];
+        save(ProcessingStatistics_wICAFile,'RELAXProcessing_wICA_AllParticipants')
     else
         RELAXProcessing_wICA_AllParticipants={}; 
     end
     if RELAX_cfg.Perform_ICA_subtract==1
-        savefilefour=[RELAX_cfg.myPath filesep 'RELAXProcessed' filesep 'ProcessingStatistics_ICA'];
-        save(savefilefour,'RELAXProcessing_ICA_AllParticipants')
+        %savefilefour=[RELAX_cfg.myPath filesep 'RELAXProcessed' filesep 'ProcessingStatistics_ICA'];
+        save(ProcessingStatistics_ICAFile,'RELAXProcessing_ICA_AllParticipants')
     else
         RELAXProcessing_ICA_AllParticipants={}; 
     end
     if exist('CleanedMetrics','var')
-        savemetrics=[RELAX_cfg.myPath filesep 'RELAXProcessed' filesep 'CleanedMetrics'];
-        save(savemetrics,'CleanedMetrics')
+        %savemetrics=[RELAX_cfg.myPath filesep 'RELAXProcessed' filesep 'CleanedMetrics'];
+        save(CleanedMetricsFile,'CleanedMetrics')
     else
         CleanedMetrics={};
     end
     if exist('RawMetrics','var')
-        savemetrics=[RELAX_cfg.myPath filesep 'RELAXProcessed' filesep 'RawMetrics'];
-        save(savemetrics,'RawMetrics')
+        %savemetrics=[RELAX_cfg.myPath filesep 'RELAXProcessed' filesep 'RawMetrics'];
+        save(RawMetricsFile,'RawMetrics')
     else
         RawMetrics={};
     end
     if exist('RELAX_issues_to_check','var')
-        savemetrics=[RELAX_cfg.myPath filesep 'RELAXProcessed' filesep 'RELAX_issues_to_check'];
-        save(savemetrics,'RELAX_issues_to_check')
+        %savemetrics=[RELAX_cfg.myPath filesep 'RELAXProcessed' filesep 'RELAX_issues_to_check'];
+        save(RELAX_issues_to_checkFile,'RELAX_issues_to_check')
     end
     if exist('RELAX_issues_to_check_2nd_run','var')
-        savemetrics=[RELAX_cfg.myPath filesep 'RELAXProcessed' filesep 'RELAX_issues_to_check_2nd_run'];
-        save(savemetrics,'RELAX_issues_to_check_2nd_run')
+        %savemetrics=[RELAX_cfg.myPath filesep 'RELAXProcessed' filesep 'RELAX_issues_to_check_2nd_run'];
+        save(RELAX_issues_to_checkFile,'RELAX_issues_to_check_2nd_run')
     end
     RELAX_cfg.filename=[];
-    savefileone=[RELAX_cfg.myPath filesep 'RELAXProcessed' filesep 'RELAX_cfg'];
-    save(savefileone,'RELAX_cfg')    
+    RELAX_cfg_file = fullfile(statsDir, sprintf('RELAX_cfg_%s.mat', tag));  % <- Add this to use tagged filename
+    save(RELAX_cfg_file,'RELAX_cfg')      
 end
 
 set(groot, 'defaultAxesTickLabelInterpreter','none');

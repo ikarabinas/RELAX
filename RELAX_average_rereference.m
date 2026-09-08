@@ -38,6 +38,7 @@ function [EEG] = RELAX_average_rereference(EEG)
             EEG = pop_select( EEG,'nochannel',{'initialReference'});
             EEG.RELAX.Data_has_been_averagerereferenced=1;
             EEG=pop_select(EEG,'channel',EEG.RELAX.ListOfChannelsAfterRejections);
+            fprintf('EEG reference:%s\n', EEG.ref)
         end
     end
 end

@@ -147,7 +147,7 @@ addpath('/home/imk2003/Documents/MATLAB/eeglab/plugins/RELAX/');
 RELAX_cfg.caploc=[]; % path containing electrode positions. Set to =[] if electrode locations are already in your EEG file.
 
 % Specify the to be processed file locations:
-RELAX_cfg.myPath='/athena/grosenicklab/scratch/imk2003/acc_tmseeg/eeg_data/RELAX_GEDAI/RELAX_twICA_GEDAI-dmpfc';
+RELAX_cfg.myPath='/athena/grosenicklab/scratch/imk2003/acc_tmseeg/eeg_data/RELAX_GEDAI/RELAX_twICA_GEDAI-ofc';
 
 % Specify whether all data is in a single folder or data are in BIDS format
 % (each EEG file within its own separate folder):
@@ -158,38 +158,152 @@ RELAX_cfg.filename=[]; % (including folder path)
 
 %% List all files in directory
 cd(RELAX_cfg.myPath);
-if strcmp(RELAX_cfg.all_data_in_1_folder_or_BIDS_format,'BIDS')
-    RELAX_cfg.dirList=dir([RELAX_cfg.myPath '\**\*.set']);
-    already_processed=[];
-    for f=1:size(RELAX_cfg.dirList,1)
-        if contains(RELAX_cfg.dirList(f).name,'RELAX')
-            already_processed(f)=1;
-        end
-    end
-    RELAX_cfg.dirList(already_processed==1,:)=[]; % remove filenames from this list if they have already been cleaned
-    RELAX_cfg.folders={RELAX_cfg.dirList.folder};
-else
-    RELAX_cfg.dirList = dir('*.set');
-    
-    % IMK added -- Check output folder for already processed files and skip
-    already_cleaned = dir(fullfile(RELAX_cfg.myPath, 'RELAXProcessed', 'Cleaned_Data', '*RELAX*.set'));
-    already_cleaned_names = {already_cleaned.name};
 
-    already_processed = zeros(size(RELAX_cfg.dirList, 1), 1);
-    for f = 1:size(RELAX_cfg.dirList, 1)
-        % Strip extension, check if a cleaned version of this file exists
-        [~, basename, ~] = fileparts(RELAX_cfg.dirList(f).name);
-        if any(contains(already_cleaned_names, basename))
-            already_processed(f) = 1;
-        end
+% Build the raw file list according to folder/BIDS setting
+if strcmp(RELAX_cfg.all_data_in_1_folder_or_BIDS_format,'BIDS')
+    dirListRaw = dir([RELAX_cfg.myPath '\**\*.set']);
+else
+    dirListRaw = dir('*.set');
+end
+
+allFilesRaw = {dirListRaw.name};
+
+%% ---- Compute participant list once from the full file set ----
+participantListFile = fullfile(RELAX_cfg.myPath, 'participant_list.mat');
+
+participantIDsFull = cell(size(allFilesRaw));
+for f = 1:numel(allFilesRaw)
+    tok = regexp(allFilesRaw{f}, '^([A-Za-z]\d+)', 'tokens');
+    if isempty(tok)
+        error('Could not parse participant ID from filename: %s', allFilesRaw{f});
     end
-    RELAX_cfg.dirList(already_processed == 1, :) = [];
-    % --------------------------------------
+    participantIDsFull{f} = tok{1}{1};
 end
-RELAX_cfg.files={RELAX_cfg.dirList.name};
+
+if ~exist(participantListFile, 'file')
+    uniqueParticipants = unique(participantIDsFull, 'stable');
+    save(participantListFile, 'uniqueParticipants');
+else
+    loaded = load(participantListFile, 'uniqueParticipants');
+    uniqueParticipants = loaded.uniqueParticipants;
+end
+
+task_id = str2double(getenv('SLURM_ARRAY_TASK_ID'));
+if isnan(task_id); task_id = 1; end
+if task_id > numel(uniqueParticipants)
+    fprintf('Array task %d has no participant to process (only %d participants).\n', task_id, numel(uniqueParticipants));
+    return
+end
+thisParticipant = uniqueParticipants{task_id};
+
+% Select this participant's files from the full raw list
+keepIdx = strcmp(participantIDsFull, thisParticipant);
+RELAX_cfg.dirList = dirListRaw(keepIdx);
+RELAX_cfg.files   = allFilesRaw(keepIdx);
+if strcmp(RELAX_cfg.all_data_in_1_folder_or_BIDS_format,'BIDS')
+    RELAX_cfg.folders = {RELAX_cfg.dirList.folder};
+end
+
+% Scope "skip already cleaned" to just this participant's files
+already_cleaned = dir(fullfile(RELAX_cfg.myPath, 'RELAXProcessed', 'Cleaned_Data', '*RELAX*.set'));
+already_cleaned_names = {already_cleaned.name};
+already_processed = false(size(RELAX_cfg.dirList));
+for f = 1:numel(RELAX_cfg.dirList)
+    [~, basename, ~] = fileparts(RELAX_cfg.dirList(f).name);
+    already_processed(f) = any(contains(already_cleaned_names, basename));
+end
+RELAX_cfg.dirList(already_processed) = [];
+RELAX_cfg.files(already_processed) = [];
+if strcmp(RELAX_cfg.all_data_in_1_folder_or_BIDS_format,'BIDS')
+    RELAX_cfg.folders = RELAX_cfg.folders(~already_processed);
+end
+
+RELAX_cfg.ParticipantTag = thisParticipant;
+fprintf('Array task %d processing participant: %s (%d files)\n', task_id, thisParticipant, numel(RELAX_cfg.files));
+
+log_file = sprintf('%s/slurm_task_%d.log', RELAX_cfg.myPath, task_id);
+fid = fopen(log_file, 'w');
+fprintf(fid, 'Task %d - Participant %s\n', task_id, thisParticipant);
+fprintf(fid, 'Files:\n');
+cellfun(@(f) fprintf(fid, '  %s\n', f), RELAX_cfg.files);
+fclose(fid);
+
 if isempty(RELAX_cfg.files)
-    disp('No files found..')
+    fprintf('Array task %d: participant %s has no unprocessed files remaining. Skipping.\n', task_id, thisParticipant);
+    log_file = sprintf('%s/slurm_task_%d.log', RELAX_cfg.myPath, task_id);
+    fid = fopen(log_file, 'w');
+    fprintf(fid, 'Task %d - Participant %s - SKIPPED (already fully processed)\n', task_id, thisParticipant);
+    fclose(fid);
+    return
 end
+
+%     RELAX_cfg.dirList=dir([RELAX_cfg.myPath '\**\*.set']);
+%     already_processed=[];
+%     for f=1:size(RELAX_cfg.dirList,1)
+%         if contains(RELAX_cfg.dirList(f).name,'RELAX')
+%             already_processed(f)=1;
+%         end
+%     end
+%     RELAX_cfg.dirList(already_processed==1,:)=[]; % remove filenames from this list if they have already been cleaned
+%     RELAX_cfg.folders={RELAX_cfg.dirList.folder};
+% else
+%     RELAX_cfg.dirList = dir('*.set');
+% 
+%     % IMK added -- Check output folder for already processed files and skip
+%     already_cleaned = dir(fullfile(RELAX_cfg.myPath, 'RELAXProcessed', 'Cleaned_Data', '*RELAX*.set'));
+%     already_cleaned_names = {already_cleaned.name};
+% 
+%     already_processed = zeros(size(RELAX_cfg.dirList, 1), 1);
+%     for f = 1:size(RELAX_cfg.dirList, 1)
+%         % Strip extension, check if a cleaned version of this file exists
+%         [~, basename, ~] = fileparts(RELAX_cfg.dirList(f).name);
+%         if any(contains(already_cleaned_names, basename))
+%             already_processed(f) = 1;
+%         end
+%     end
+%     RELAX_cfg.dirList(already_processed == 1, :) = [];
+%     % --------------------------------------
+% end
+% 
+% RELAX_cfg.files={RELAX_cfg.dirList.name};
+% if isempty(RELAX_cfg.files)
+%     disp('No files found..')
+% end
+% 
+% %% ---- NEW: select this array task's participant ----
+% task_id = str2double(getenv('SLURM_ARRAY_TASK_ID'));
+% if isnan(task_id)
+%     task_id = 1; % fallback for interactive/local runs
+% end
+% 
+% % Extract a participant ID from each filename (ADJUST REGEX to your naming scheme)
+% allFiles = RELAX_cfg.files;
+% participantIDs = cell(size(allFiles));
+% for f = 1:numel(allFiles)
+%     tok = regexp(allFiles{f}, '^([A-Za-z]\d+)', 'tokens');
+%     if isempty(tok)
+%         error('Could not parse participant ID from filename: %s', allFiles{f});
+%     end
+%     participantIDs{f} = tok{1}{1};
+% end
+% 
+% uniqueParticipants = unique(participantIDs, 'stable');
+% if task_id > numel(uniqueParticipants)
+%     fprintf('Array task %d has no participant to process (only %d participants). Exiting.\n', ...
+%         task_id, numel(uniqueParticipants));
+%     return
+% end
+% 
+% thisParticipant = uniqueParticipants{task_id};
+%     keepIdx = strcmp(participantIDs, thisParticipant);
+% 
+%     RELAX_cfg.dirList = RELAX_cfg.dirList(keepIdx);
+%     RELAX_cfg.files   = RELAX_cfg.files(keepIdx);
+%     if strcmp(RELAX_cfg.all_data_in_1_folder_or_BIDS_format,'BIDS')
+%         RELAX_cfg.folders = RELAX_cfg.folders(keepIdx);
+%     end
+
+%% ---- end NEW ----
 
 %% Parameters that can be specified:
 
@@ -296,7 +410,7 @@ end
 % avoiding low pass filtering prior to MWF reduces chances of rank deficiencies increasing potential values for MWF delay period 
 % (downsampling the data after filtering also reduces the chances of rank deficiencies) 
 RELAX_cfg.DownSample='yes'; % set to 'yes' if you wish to downsample the data
-RELAX_cfg.DownSample_to_X_Hz=250; % frequency to downsample to (in samples per second / Hz)
+RELAX_cfg.DownSample_to_X_Hz=250; % frequency to downsample to (in samples per second / Hz). GEDAI works best at ~250 Hz
 
 RELAX_cfg.FilterType='Butterworth'; % set as 'pop_eegfiltnew' to use EEGLAB's filter or 'Butterworth' to use Butterworth filter
 RELAX_cfg.causal_or_acausal_filter='acausal'; % set as 'acausal' or 'causal'. 
@@ -311,7 +425,7 @@ RELAX_cfg.NotchFilterType='Butterworth'; % set as 'Butterworth' to use Butterwor
 % ZaplinePlus works best on data sampled at 512Hz or below, consider downsampling if above this.
 RELAX_cfg.LineNoiseFrequency=[60]; % Frequencies for bandstop filter in order to address line noise (set to 60 in countries with 60Hz line noise, and 50 in countries with 50Hz line noise).
 
-RELAX_cfg.ElectrodesToDelete={'E257'};
+RELAX_cfg.ElectrodesToDelete={'E257'};  % Remove reference chan -- RELAX assumes it is no longer in data in RELAX_average_rereference
 % If your EEG recording includes non-scalp electrodes or electrodes that you want to delete before cleaning, you can set them to be deleted here. 
 % The RELAX cleaning pipeline does not need eye, heart, or mastoid electrodes for effective cleaning.
 
@@ -324,9 +438,9 @@ RELAX_cfg.LowPassFilter_aux_elecs=RELAX_cfg.LowPassFilter;
 
 RELAX_cfg.KeepAllInfo=0; % setting this value to 1 keeps all the details from the MWF pre-processing and MWF computation. Helpful for debugging if necessary but makes for large file sizes.
 RELAX_cfg.saveextremesrejected=1; % setting this value to 1 tells the script to save the data after only filtering, extreme channels have been rejected and extreme periods have been noted
-RELAX_cfg.saveround1=1; % setting this value to 1 tells the script to save the first round of MWF pre-processing
-RELAX_cfg.saveround2=1; % setting this value to 1 tells the script to save the second round of MWF pre-processing
-RELAX_cfg.saveround3=1; % setting this value to 1 tells the script to save the third round of MWF pre-processing
+RELAX_cfg.saveround1=0; % setting this value to 1 tells the script to save the first round of MWF pre-processing
+RELAX_cfg.saveround2=0; % setting this value to 1 tells the script to save the second round of MWF pre-processing
+RELAX_cfg.saveround3=0; % setting this value to 1 tells the script to save the third round of MWF pre-processing
 
 RELAX_cfg.OnlyIncludeTaskRelatedEpochs=0; % If this =1, the MWF clean and artifact templates will only include data within 5 seconds of a task trigger (other periods will be marked as NaN, which the MWF script ignores).
 
@@ -454,5 +568,5 @@ end
 RELAX_cfg.FilesToProcess=1:numel(RELAX_cfg.files); % Set which files to process
 
 [RELAX_cfg, FileNumber, CleanedMetrics, RawMetrics, RELAXProcessingRoundOneAllParticipants, RELAXProcessingRoundTwoAllParticipants, RELAXProcessing_wICA_AllParticipants,...
-        RELAXProcessing_ICA_AllParticipants, RELAXProcessingRoundThreeAllParticipants, RELAX_issues_to_check, RELAX_issues_to_check_2nd_run, RELAXProcessingExtremeRejectionsAllParticipants] = RELAX_Wrapper (RELAX_cfg);
+        RELAXProcessing_ICA_AllParticipants, RELAXProcessingRoundThreeAllParticipants, RELAX_issues_to_check, RELAX_issues_to_check_2nd_run, RELAXProcessingExtremeRejectionsAllParticipants] = RELAX_Wrapper_slurm (RELAX_cfg);
 
